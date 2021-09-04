@@ -156,14 +156,14 @@ static __always_inline void PIN_SWDIO_OUT(uint32_t bit)
 
 static __always_inline void PIN_SWDIO_OUT_ENABLE(void)
 {
-    gpio_ll_output_enable(&GPIO, PIN_SWDIO);
-    gpio_ll_input_disable(&GPIO, PIN_SWDIO);
+    (&GPIO)->enable_w1ts = (1 << PIN_SWDIO);
+    PIN_INPUT_DISABLE(GPIO_PIN_MUX_REG[PIN_SWDIO]);
 }
 
 static __always_inline void PIN_SWDIO_OUT_DISABLE(void)
 {
-    gpio_ll_output_disable(&GPIO, PIN_SWDIO);
-    gpio_ll_input_enable(&GPIO, PIN_SWDIO);
+    (&GPIO)->enable_w1tc = (1 << PIN_SWDIO);
+    PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[PIN_SWDIO]);
 }
 
 static __always_inline uint32_t PIN_TDI_IN(void)

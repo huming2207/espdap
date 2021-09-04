@@ -30,6 +30,10 @@
 #include "DAP.h"
 
 
+#include <esp_log.h>
+#define DAP_TAG "swd"
+
+
 // Probably not 1024
 #ifndef TARGET_AUTO_INCREMENT_PAGE_SIZE
 #define TARGET_AUTO_INCREMENT_PAGE_SIZE (1024)
@@ -578,41 +582,49 @@ static uint8_t swd_write_debug_state(DEBUG_STATE *state)
     // R0, R1, R2, R3
     for (i = 0; i < 4; i++) {
         if (!swd_write_core_register(i, state->r[i])) {
+            ESP_LOGE(DAP_TAG, "Failed to set R0-3");
             return 0;
         }
     }
 
     // R9
     if (!swd_write_core_register(9, state->r[9])) {
+        ESP_LOGE(DAP_TAG, "Failed to set R9");
         return 0;
     }
 
     // R13, R14, R15
     for (i = 13; i < 16; i++) {
         if (!swd_write_core_register(i, state->r[i])) {
+            ESP_LOGE(DAP_TAG, "Failed to set R13-15");
             return 0;
         }
     }
 
     // xPSR
     if (!swd_write_core_register(16, state->xpsr)) {
+        ESP_LOGE(DAP_TAG, "Failed to set xPSR");
         return 0;
     }
 
     if (!swd_write_word(DBG_HCSR, DBGKEY | C_DEBUGEN | C_MASKINTS | C_HALT)) {
+        ESP_LOGE(DAP_TAG, "Failed to set halt");
         return 0;
     }
 
     if (!swd_write_word(DBG_HCSR, DBGKEY | C_DEBUGEN | C_MASKINTS)) {
+        ESP_LOGE(DAP_TAG, "Failed to set unhalt");
         return 0;
     }
 
     // check status
     if (!swd_read_dp(DP_CTRL_STAT, &status)) {
+        ESP_LOGE(DAP_TAG, "Failed to check status");
         return 0;
     }
 
     if (status & (STICKYERR | WDATAERR)) {
+        ESP_LOGE(DAP_TAG, "Status has error");
         return 0;
     }
 
@@ -639,6 +651,7 @@ uint8_t swd_read_core_register(uint32_t n, uint32_t *val)
     }
 
     if (i == timeout) {
+        ESP_LOGE(DAP_TAG, "Timeout");
         return 0;
     }
 
@@ -672,10 +685,11 @@ uint8_t swd_write_core_register(uint32_t n, uint32_t val)
         }
     }
 
+    ESP_LOGE(DAP_TAG, "Core timeout");
     return 0;
 }
 
-static uint8_t swd_wait_until_halted(void)
+uint8_t swd_wait_until_halted(void)
 {
     // Wait for target to stop
     uint32_t val, i, timeout = MAX_TIMEOUT;
@@ -708,19 +722,23 @@ uint8_t swd_flash_syscall_exec(const program_syscall_t *sysCallParam, uint32_t e
     state.xpsr     = 0x01000000;          // xPSR: T = 1, ISR = 0
 
     if (!swd_write_debug_state(&state)) {
+        ESP_LOGE(DAP_TAG, "Failed to set state");
         return 0;
     }
 
     if (!swd_wait_until_halted()) {
+        ESP_LOGE(DAP_TAG, "Failed to halt");
         return 0;
     }
 
     if (!swd_read_core_register(0, &state.r[0])) {
+        ESP_LOGE(DAP_TAG, "Failed to read register");
         return 0;
     }
 
     //remove the C_MASKINTS
     if (!swd_write_word(DBG_HCSR, DBGKEY | C_DEBUGEN | C_HALT)) {
+        ESP_LOGE(DAP_TAG, "Failed to halt again");
         return 0;
     }
 
@@ -731,7 +749,6 @@ uint8_t swd_flash_syscall_exec(const program_syscall_t *sysCallParam, uint32_t e
         }
     }
     else {
-        // Flash functions return 0 if successful.
         if (state.r[0] != 0) {
             return 0;
         }
@@ -764,8 +781,6 @@ static uint8_t swd_switch(uint16_t val)
     return 1;
 }
 
-#include <esp_log.h>
-#define DAP_TAG "swd"
 
 // SWD Read ID
 uint8_t swd_read_idcode(uint32_t *id)
@@ -825,9 +840,9 @@ uint8_t swd_init_debug(void)
         if (do_abort) {
             //do an abort on stale target, then reset the device
             swd_write_dp(DP_ABORT, DAPABORT);
-            PIN_nRESET_OUT(1);
-            vTaskDelay(pdMS_TO_TICKS(10));
             PIN_nRESET_OUT(0);
+            vTaskDelay(pdMS_TO_TICKS(10));
+            PIN_nRESET_OUT(1);
             vTaskDelay(pdMS_TO_TICKS(10));
             do_abort = 0;
         }
@@ -894,5 +909,14 @@ uint8_t swd_init_debug(void)
     } while (--retries > 0);
 
     return 0;
+}
+
+uint8_t swd_halt_target()
+{
+    if (!swd_write_word(DBG_HCSR, DBGKEY | C_MASKINTS | C_DEBUGEN | C_HALT)) {
+        return 0;
+    }
+
+    return 1;
 }
 
