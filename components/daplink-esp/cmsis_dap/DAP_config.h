@@ -18,7 +18,7 @@
 #define DAP_JTAG                0               ///< JTAG Mode: 1 = available, 0 = not available.
 #define DAP_JTAG_DEV_CNT        0               ///< Maximum number of JTAG devices on scan chain
 #define DAP_DEFAULT_PORT        1               ///< Default JTAG/SWJ Port Mode: 1 = SWD, 2 = JTAG.
-#define DAP_DEFAULT_SWJ_CLOCK   35000000         ///< Default SWD/JTAG clock frequency in Hz.
+#define DAP_DEFAULT_SWJ_CLOCK   50000000         ///< Default SWD/JTAG clock frequency in Hz.
 #define IO_PORT_WRITE_CYCLES    2               ///< I/O Cycles: 2=default, 1=Cortex-M0+ fast I/0
 
 /// Maximum Package Size for Command and Response data.
@@ -50,7 +50,7 @@
 #define SWO_STREAM              0               ///< SWO Streaming Trace: 1 = available, 0 = not available.
 
 /// Clock frequency of the Test Domain Timer. Timer value is returned with \ref TIMESTAMP_GET.
-#define TIMESTAMP_CLOCK         1000000U      ///< Timestamp clock in Hz (0 = timestamps not supported).
+#define TIMESTAMP_CLOCK         80000000U      ///< Timestamp clock in Hz (0 = timestamps not supported).
 
 
 /// Debug Unit is connected to fixed Target Device.
@@ -205,11 +205,11 @@ static __always_inline void PIN_nRESET_OUT(uint32_t bit)
     }
 }
 
-#include <esp_timer.h>
+#include "../../../esp_timer/private_include/esp_timer_impl.h"
 
 static __always_inline uint32_t TIMESTAMP_GET()
 {
-    return esp_timer_get_time();
+    return esp_timer_impl_get_counter_reg();
 }
 
 static inline void DAP_SETUP(void)
