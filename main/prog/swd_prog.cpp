@@ -41,7 +41,7 @@ esp_err_t swd_prog::load_flash_algorithm()
         return ESP_ERR_INVALID_STATE;
     }
 
-    uint8_t flash_algo_decoded[350] = { 0 };
+    uint8_t flash_algo_decoded[300] = { 0 };
     size_t flash_algo_len = 0;
     int mbedtls_ret = mbedtls_base64_decode(
                 flash_algo_decoded, sizeof(flash_algo_decoded),
@@ -50,8 +50,8 @@ esp_err_t swd_prog::load_flash_algorithm()
             );
 
     ESP_LOGI(TAG, "Mbedtls returned %d, flash algo len %u, loading to 0x%x", mbedtls_ret, flash_algo_len, (uint32_t)(code_start + sizeof(header_blob)));
-    ESP_LOG_BUFFER_HEX(TAG, header_blob, sizeof(header_blob));
-    ESP_LOG_BUFFER_HEX(TAG, flash_algo_decoded, flash_algo_len);
+//    ESP_LOG_BUFFER_HEX(TAG, header_blob, sizeof(header_blob));
+//    ESP_LOG_BUFFER_HEX(TAG, flash_algo_decoded, flash_algo_len);
 
     // Mem structure: 512 bytes stack + flash algorithm binary + buffer
     ret = swd_write_memory(code_start, (uint8_t *)header_blob, sizeof(header_blob));
@@ -67,11 +67,6 @@ esp_err_t swd_prog::load_flash_algorithm()
         state = swd_def::UNKNOWN;
         return ESP_FAIL;
     }
-
-    ESP_LOGW(TAG, ">>> Readback");
-    memset(flash_algo_decoded, 0, 350);
-    swd_read_memory(0x20000200, flash_algo_decoded, 350);
-    ESP_LOG_BUFFER_HEX(TAG, flash_algo_decoded, 350);
 
     state = swd_def::FLASH_ALG_LOADED;
     return ESP_OK;
@@ -101,7 +96,7 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
     ESP_LOGI(TAG, "Running init, load_addr: 0x%x, stack_ptr: 0x%x, static_base: 0x%x", syscall.breakpoint, syscall.stack_pointer, syscall.static_base);
     ret = swd_flash_syscall_exec(
             &syscall,
-            0x20000221, // Init PC = 1, +0x20 for header
+            0x20000241, // Init PC = 1, +0x20 for header
             0x08000000, // r1 = flash base addr
             0, // r2 = ignored
             mode, 0, // r3 = mode, r4 ignored
@@ -136,7 +131,7 @@ esp_err_t swd_prog::run_algo_uninit(swd_def::init_mode mode)
 
     ret = swd_flash_syscall_exec(
             &syscall,
-            code_start + 61, // UnInit PC = 61
+            code_start + 61 + 0x20, // UnInit PC = 61
             mode,
             0, 0, 0, // r2, r3 = ignored
             FLASHALGO_RETURN_BOOL
@@ -188,6 +183,7 @@ esp_err_t swd_prog::init()
 esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t sector_size, uint32_t end_addr)
 {
     uint32_t sector_cnt = (end_addr - start_addr) / sector_size;
+    ESP_LOGI(TAG, "End addr 0x%x, start addr 0x%x, sector size %u", end_addr, start_addr, sector_size);
     if ((end_addr - start_addr) % sector_size != 0 || sector_cnt < 1) {
         ESP_LOGE(TAG, "Misaligned sector address");
         return ESP_ERR_INVALID_ARG;
@@ -214,14 +210,16 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t sector_size, uint
         return ESP_ERR_INVALID_STATE;
     }
 
-    for (uint32_t idx = 0; idx < sector_cnt; idx += 1) {
+    for (uint32_t idx = 0; idx < sector_cnt - 1; idx += 1) {
         swd_ret = swd_flash_syscall_exec(
                 &syscall,
-                code_start + 91, // ErasePage PC = 91
+                code_start + 0x20 + 91, // ErasePage PC = 91
                 0x08000000 + (idx * sector_size), // r1 = flash base addr
                 0, 0, 0, // r2, r3 = ignored
                 FLASHALGO_RETURN_BOOL
         );
+
+//        ESP_LOGW(TAG, "Erased at 0x%x, idx: %u of %u", 0x08000000 + (idx * sector_size), idx, sector_cnt -1);
 
         if (swd_ret < 1) {
             ESP_LOGE(TAG, "Erase function returned an unknown error");
@@ -263,7 +261,7 @@ esp_err_t swd_prog::program_page(uint32_t start_addr, const uint8_t *buf, size_t
         return ESP_ERR_INVALID_STATE;
     }
 
-    swd_ret = swd_write_memory(0x20000a00, (uint8_t *)buf, len); // TODO: wrap or limit length?
+    swd_ret = swd_write_memory(0x20000340, (uint8_t *)buf, len); // TODO: wrap or limit length?
     if (swd_ret < 1) {
         ESP_LOGE(TAG, "Failed when writing RAM cache");
         state = swd_def::UNKNOWN;
@@ -272,14 +270,18 @@ esp_err_t swd_prog::program_page(uint32_t start_addr, const uint8_t *buf, size_t
 
     swd_ret = swd_flash_syscall_exec(
             &syscall,
-            code_start + 149, // ErasePage PC = 91
-            0x08000080, // r1 = flash base addr
-            1024, 0x20000a00, 0, // r2 = len, r3 = buf addr
+            code_start + 149 + 0x20, // ErasePage PC = 91
+            0x08000000, // r0 = flash base addr
+            1024, 0x20000340, 0, // r1 = len, r2 = buf addr
             FLASHALGO_RETURN_BOOL
     );
 
     if (swd_ret < 1) {
         ESP_LOGE(TAG, "Program function returned an unknown error");
+        uint32_t err_sr = 0;
+        swd_read_word(0x40022018, &err_sr);
+        ESP_LOGW(TAG, "FLASH_SR = 0x%x", err_sr);
+
         state = swd_def::UNKNOWN;
         return ESP_ERR_INVALID_STATE;
     }
