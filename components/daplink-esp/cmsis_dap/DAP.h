@@ -293,7 +293,7 @@ extern void     DAP_Setup (void);
 #define DELAY_SLOW_CYCLES       10U      // Number of cycles for one iteration
 #endif
 
-static __always_inline void PIN_DELAY_SLOW (uint32_t delay) {
+static __inline__ __attribute__((__always_inline__)) void PIN_DELAY_SLOW (uint32_t delay) {
     volatile uint32_t count = delay;
     while (--count);
 }
@@ -303,7 +303,7 @@ static __always_inline void PIN_DELAY_SLOW (uint32_t delay) {
 #ifndef DELAY_FAST_CYCLES
 #define DELAY_FAST_CYCLES       1      // Number of cycles: 0..3
 #endif
-static __always_inline void PIN_DELAY_FAST (void) {
+static __inline__ __attribute__((__always_inline__)) void PIN_DELAY_FAST (void) {
 #if (DELAY_FAST_CYCLES >= 1U)
     __asm__ __volatile__("nop;");
 #endif

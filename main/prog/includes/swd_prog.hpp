@@ -41,11 +41,7 @@ private:
     program_syscall_t syscall = {};
     uint32_t code_start = 0;
 
-    static constexpr char flash_algo[] = "ASoB0AIqF9E7SIFpDyISAhFDgWE5ScFgOUnBYDlJAWE5SQFhwGnAAgbUOUg3SQFgBiFBYDdJgWAAIHBHA"
-                                     "SgB0AIoCNEsSEFoAiIRQ0FgQWgBIhFDQWAAIHBHMLUmSUpoTBUiQ0pgSmgIJSpDSmAAIgJgKUgmSgDgEGC"
-                                     "LadsH+9FIaKBDSGBIaKhDSGAAIDC9ASBwR/C1GEwAIyUVCCY/MYkJjEYk4GFoKUNhYGFoMUNhYEAhgMqAwA"
-                                     "kfACn60RZJp2n/BwLQEk85YPnnoWkJBQkPBtCgaQ8hCQIIQ6BhASDwvWFoqUNhYGFosUNhYFscnEXY2AAg"
-                                     "8L0AIAJA782riQUEAwK/rp2MFhUUE1VVAAAAMABA/w8AAKqqAAAAAAAA";
+    static const uint32_t header_blob[];
 
 private:
     swd_prog() = default;
