@@ -749,7 +749,19 @@ uint8_t swd_flash_syscall_exec(const program_syscall_t *sysCallParam, uint32_t e
         }
     }
     else {
+         ESP_LOGW(DAP_TAG, "R0 = %d", state.r[0]);
         if (state.r[0] != 0) {
+            uint32_t r1 = 0;
+            swd_read_core_register(1, &r1);
+
+            uint32_t r2 = 0;
+            swd_read_core_register(1, &r2);
+            ESP_LOGW(DAP_TAG, "R1 = 0x%x, R2 = 0x%x", r1, r2);
+
+            static uint8_t stack_buf[2048] = { 0 };
+            swd_read_memory(0x20000000, stack_buf, 2048);
+            ESP_LOG_BUFFER_HEX(DAP_TAG, stack_buf, 2048);
+
             return 0;
         }
     }
