@@ -53,7 +53,7 @@
 #define REGWnR (1 << 16)
 
 #define MAX_SWD_RETRY 100//10
-#define MAX_TIMEOUT   1000000  // Timeout for syscalls on target
+#define MAX_TIMEOUT   10000  // Timeout for syscalls on target
 
 // Use the CMSIS-Core definition if available.
 #if !defined(SCB_AIRCR_PRIGROUP_Pos)
@@ -749,28 +749,28 @@ uint8_t swd_flash_syscall_exec(const program_syscall_t *sysCallParam, uint32_t e
         }
     }
     else {
-         ESP_LOGW(DAP_TAG, "R0 = %d", state.r[0]);
-
-        uint32_t r1 = 0;
-        swd_read_core_register(1, &r1);
-
-        uint32_t r2 = 0;
-        swd_read_core_register(2, &r2);
-
-        uint32_t r15 = 0;
-        swd_read_core_register(15, &r15);
-        ESP_LOGW(DAP_TAG, "R1 = 0x%x, R2 = 0x%x, R15 (PC) = 0x%x", r1, r2, r15);
+//         ESP_LOGW(DAP_TAG, "R0 = %d", state.r[0]);
+//
+//        uint32_t r1 = 0;
+//        swd_read_core_register(1, &r1);
+//
+//        uint32_t r2 = 0;
+//        swd_read_core_register(2, &r2);
+//
+//        uint32_t r15 = 0;
+//        swd_read_core_register(15, &r15);
+//        ESP_LOGW(DAP_TAG, "R1 = 0x%x, R2 = 0x%x, R15 (PC) = 0x%x", r1, r2, r15);
 
         if (state.r[0] != 0) {
-//            uint32_t r1 = 0;
-//            swd_read_core_register(1, &r1);
-//
-//            uint32_t r2 = 0;
-//            swd_read_core_register(2, &r2);
-//
-//            uint32_t r15 = 0;
-//            swd_read_core_register(15, &r15);
-//            ESP_LOGW(DAP_TAG, "R1 = 0x%x, R2 = 0x%x, R15 (PC) = 0x%x", r1, r2, r15);
+            uint32_t r1 = 0;
+            swd_read_core_register(1, &r1);
+
+            uint32_t r2 = 0;
+            swd_read_core_register(2, &r2);
+
+            uint32_t r15 = 0;
+            swd_read_core_register(15, &r15);
+            ESP_LOGW(DAP_TAG, "R1 = 0x%x, R2 = 0x%x, R15 (PC) = 0x%x", r1, r2, r15);
 
             return 0;
         }
