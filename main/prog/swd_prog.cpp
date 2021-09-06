@@ -8,11 +8,7 @@
 #define TAG "swd_prog"
 
 // From: https://github.com/probe-rs/probe-rs/blob/master/probe-rs/targets/STM32L0_Series.yaml#L3997
-const static constexpr char flash_algo[] = "ASoB0AIqF9E7SIFpDyISAhFDgWE5ScFgOUnBYDlJAWE5SQFhwGnAAgbUOUg3SQFgBiFBYDdJgWAAIHBHA"
-                                           "SgB0AIoCNEsSEFoAiIRQ0FgQWgBIhFDQWAAIHBHMLUmSUpoTBUiQ0pgSmgIJSpDSmAAIgJgKUgmSgDgEGC"
-                                           "LadsH+9FIaKBDSGBIaKhDSGAAIDC9ASBwR/C1GEwAIyUVCCY/MYkJjEYk4GFoKUNhYGFoMUNhYEAhgMqAwA"
-                                           "kfACn60RZJp2n/BwLQEk85YPnnoWkJBQkPBtCgaQ8hCQIIQ6BhASDwvWFoqUNhYGFosUNhYFscnEXY2AAg"
-                                           "8L0AIAJA782riQUEAwK/rp2MFhUUE1VVAAAAMABA/w8AAKqqAAAAAAAA";
+const static constexpr char flash_algo[] = "gLWEsACv+GC5YHpgE0uaaRJL8CEJAQpDmmEQSxBK2mAOSxBK2mANSw9KGmELSw9KGmEKS9ppgCNbAxNACNEMSwxKGmAKSwYiWmAJSwpKmmAAIxgAvUYEsIC9wEYAIAJA782riQUEAwK/rp2MFhUUEwAwAEBVVQAA/w8AAIC1grAAr3hgCEtaaAdLAiEKQ1pgBUtaaARLASEKQ1pgACMYAL1GArCAvcBGACACQIC1grAAr3hgFEtaaBNLgCGJAApDWmARS1poEEsIIQpDWmB7aAAiGmAC4A1LDUoaYApLm2kBIhNA99EIS1poB0sJSQpAWmAFS1poBEsIIYpDWmAAIxgAvUYCsIC9ACACQAAwAECqqgAA//3//4C1hLAAr/hguWD7HRpwASMYAL1GBLCAvYC1hrAAr/hguWB6YLtoPzM/IpNDu2AAIzthRuAoS1poJ0uAIckACkNaYCVLWmgkSwghCkNaYEAje2EM4PtoemgSaBpg+2gEM/tge2gEM3tge2kEO3the2kAK+/RAuAZSxlKGmAWS5tpASITQPfRFEuaafAjGwETQAjQEUuaaRBL8CEJAQpDmmEBIxTgDEtaaAtLDkkKQFpgCUtaaAhLCCGKQ1pgO2kBMzthu2ibCTppmkKz0wAjGAC9RgawgL3ARgAgAkAAMABAqqoAAP/7//8=";
 
 const uint32_t swd_prog::header_blob[] = {
         0xE00ABE00,
@@ -41,7 +37,7 @@ esp_err_t swd_prog::load_flash_algorithm()
         return ESP_ERR_INVALID_STATE;
     }
 
-    uint8_t flash_algo_decoded[300] = { 0 };
+    uint8_t flash_algo_decoded[768] = { 0 };
     size_t flash_algo_len = 0;
     int mbedtls_ret = mbedtls_base64_decode(
                 flash_algo_decoded, sizeof(flash_algo_decoded),
@@ -74,43 +70,49 @@ esp_err_t swd_prog::load_flash_algorithm()
 
 esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
 {
-    if (load_flash_algorithm() != ESP_OK) {
-        ESP_LOGE(TAG, "Failed when loading flash algorithm");
-        return ESP_FAIL;
-    }
-
-    auto ret = swd_halt_target();
-    if (ret < 1) {
-        ESP_LOGE(TAG, "Failed when halting");
-        state = swd_def::UNKNOWN;
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    ret = swd_wait_until_halted();
-    if (ret < 1) {
-        ESP_LOGE(TAG, "Timeout when halting");
-        state = swd_def::UNKNOWN;
-        return ESP_ERR_INVALID_STATE;
-    }
-
     ESP_LOGI(TAG, "Running init, load_addr: 0x%x, stack_ptr: 0x%x, static_base: 0x%x", syscall.breakpoint, syscall.stack_pointer, syscall.static_base);
-    ret = swd_flash_syscall_exec(
-            &syscall,
-            0x20000241, // Init PC = 1, +0x20 for header
-            0x08000000, // r1 = flash base addr
-            0, // r2 = ignored
-            mode, 0, // r3 = mode, r4 ignored
-            FLASHALGO_RETURN_BOOL
-    );
+    uint32_t retry_cnt = 3;
+    while (retry_cnt > 0) {
+        if (load_flash_algorithm() != ESP_OK) {
+            ESP_LOGE(TAG, "Failed when loading flash algorithm");
+            return ESP_FAIL;
+        }
 
-    if (ret < 1) {
-        ESP_LOGE(TAG, "Failed when init algorithm");
-        state = swd_def::UNKNOWN;
-        return ESP_FAIL;
+        auto ret = swd_halt_target();
+        if (ret < 1) {
+            ESP_LOGE(TAG, "Failed when halting");
+            state = swd_def::UNKNOWN;
+            return ESP_ERR_INVALID_STATE;
+        }
+
+        ret = swd_wait_until_halted();
+        if (ret < 1) {
+            ESP_LOGE(TAG, "Timeout when halting");
+            state = swd_def::UNKNOWN;
+            return ESP_ERR_INVALID_STATE;
+        }
+
+        ret = swd_flash_syscall_exec(
+                &syscall,
+                0x20000220, // Init PC = 1, +0x20 for header (but somehow actually 0?)
+                0x08000000, // r0 = flash base addr
+                0, // r1 = ignored
+                mode, 0, // r2 = mode, r3 ignored
+                FLASHALGO_RETURN_BOOL
+        );
+
+        if (ret < 1) {
+            ESP_LOGW(TAG, "Failed when init algorith, retrying...");
+            init(); // Re-init SWD as well (so that target will reset)
+            retry_cnt -= 1;
+        } else {
+            state = swd_def::FLASH_ALG_INITED;
+            return ESP_OK;
+        }
     }
 
-    state = swd_def::FLASH_ALG_INITED;
-    return ESP_OK;
+    state = swd_def::UNKNOWN;
+    return ESP_FAIL;
 }
 
 esp_err_t swd_prog::run_algo_uninit(swd_def::init_mode mode)
@@ -131,7 +133,7 @@ esp_err_t swd_prog::run_algo_uninit(swd_def::init_mode mode)
 
     ret = swd_flash_syscall_exec(
             &syscall,
-            code_start + 61 + 0x20, // UnInit PC = 61
+            code_start + 125 + 0x20, // UnInit PC = 61
             mode,
             0, 0, 0, // r2, r3 = ignored
             FLASHALGO_RETURN_BOOL
@@ -173,7 +175,7 @@ esp_err_t swd_prog::init()
     // TODO: load from JSON
     code_start = 512 + 0x20000000; // Stack size = 512
     syscall.breakpoint = code_start + 1; // This is ARM
-    syscall.static_base = 0x11c + code_start + 0x20; // Length = 284, header = 32 bytes
+    syscall.static_base = 512 + code_start + 0x20; // Length = 512, header = 32 bytes
     syscall.stack_pointer = code_start;
 
     state = swd_def::INITIALISED;
@@ -213,9 +215,9 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t sector_size, uint
     for (uint32_t idx = 0; idx < sector_cnt - 1; idx += 1) {
         swd_ret = swd_flash_syscall_exec(
                 &syscall,
-                code_start + 0x20 + 91, // ErasePage PC = 91
-                0x08000000 + (idx * sector_size), // r1 = flash base addr
-                0, 0, 0, // r2, r3 = ignored
+                code_start + 0x20 + 173, // ErasePage PC = 173
+                0x08000000 + (idx * sector_size), // r0 = flash base addr
+                0, 0, 0, // r1, r2 = ignored
                 FLASHALGO_RETURN_BOOL
         );
 
@@ -261,20 +263,26 @@ esp_err_t swd_prog::program_page(uint32_t start_addr, const uint8_t *buf, size_t
         return ESP_ERR_INVALID_STATE;
     }
 
-    swd_ret = swd_write_memory(0x20000340, (uint8_t *)buf, len); // TODO: wrap or limit length?
+    swd_ret = swd_write_memory(0x20000f00, (uint8_t *)buf, len); // TODO: wrap or limit length?
     if (swd_ret < 1) {
         ESP_LOGE(TAG, "Failed when writing RAM cache");
         state = swd_def::UNKNOWN;
         return ESP_ERR_INVALID_STATE;
     }
 
-    swd_ret = swd_flash_syscall_exec(
-            &syscall,
-            code_start + 149 + 0x20, // ErasePage PC = 91
-            0x08000000, // r0 = flash base addr
-            1024, 0x20000340, 0, // r1 = len, r2 = buf addr
-            FLASHALGO_RETURN_BOOL
-    );
+    for (uint32_t page_idx = 0; page_idx < len / 1024; page_idx += 1) {
+        ESP_LOGI(TAG, "Writing page 0x%x", 0x08000000 + (page_idx * 1024));
+        swd_ret = swd_flash_syscall_exec(
+                &syscall,
+                code_start + 305 + 0x20, // ErasePage PC = 305
+                0x08000000 + (page_idx * 1024), // r0 = flash base addr
+                1024,
+                0x20000f00, 0, // r1 = len, r2 = buf addr
+                FLASHALGO_RETURN_BOOL
+        );
+    }
+
+
 
     if (swd_ret < 1) {
         ESP_LOGE(TAG, "Program function returned an unknown error");
