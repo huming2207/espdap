@@ -474,7 +474,7 @@ uint8_t swd_write_byte(uint32_t addr, uint8_t val)
 
 // Read unaligned data from target memory.
 // size is in bytes.
-uint8_t swd_read_memory(uint32_t address, uint8_t *data, uint32_t size)
+uint8_t IRAM_ATTR swd_read_memory(uint32_t address, uint8_t *data, uint32_t size)
 {
     uint32_t n;
 
@@ -523,7 +523,7 @@ uint8_t swd_read_memory(uint32_t address, uint8_t *data, uint32_t size)
 
 // Write unaligned data to target memory.
 // size is in bytes.
-uint8_t swd_write_memory(uint32_t address, uint8_t *data, uint32_t size)
+uint8_t IRAM_ATTR swd_write_memory(uint32_t address, uint8_t *data, uint32_t size)
 {
     uint32_t n = 0;
 
