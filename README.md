@@ -1,8 +1,8 @@
-# DAPLink on ESP32-S2
+# Soul Injector
 
-Dirty bit-banging port of DAPLink for ESP32-S2.  
+Offline firmware downloader for ARM Cortex-M, on an ESP32(-S2/3).
 
-Tested on ESP32-S2 only but it should work on ESP32-S3 and classic ESP32.
+Tested on ESP32-S2 only but it should work on ESP32-S3.
 
 ## Usage
 
@@ -47,10 +47,11 @@ I (535) main: Wrote 8KB used 24842 us, ret 1
 
 ## To-do list
 
-- [ ] Run flash algorithm
+- [x] Run flash algorithm
 - [ ] Offline firmware flashing
 - [ ] More tests
 - [ ] Read verification
+- [ ] ESP32-to-ESP32 firmware downloading
  
 ## Post-MVP feature list
 
@@ -59,4 +60,9 @@ I (535) main: Wrote 8KB used 24842 us, ret 1
 
 ## License
 
-MIT
+- This project: 
+  - Dual license:
+    - GPLv3 for non-commercial purposes
+    - Commercial licenses for any commercial purposes, speak to me (the author) for more details.
+  - DAPLink port (under `components/daplink-esp`):
+    - MIT
