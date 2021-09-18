@@ -16,24 +16,24 @@ esp_err_t flash_algo::init(const uint8_t *mp_file, size_t len)
         return ESP_ERR_INVALID_ARG;
     }
 
-    mp_buf = new uint8_t[len]; // Probably I should force it to be in PSRAM??
-    memcpy(mp_buf, mp_file, len);
-    mpack_tree_init(&mp_tree, (const char *)mp_buf, len);
+    mpack_tree_init(&mp_tree, (const char *) mp_file, len);
 
-    return ESP_OK;
-}
-
-flash_algo::~flash_algo()
-{
-    delete mp_buf;
-    delete target_name;
-    delete algo_name;
-}
-
-esp_err_t flash_algo::parse()
-{
     mpack_node_t root = mpack_tree_root(&mp_tree);
-    idcode = mpack_node_u32(mpack_node_map_cstr(root, "idcode"));
+    auto algo_node = mpack_node_map_cstr(root, "algo");
+    algo_bin_len = mpack_node_bin_size(algo_node);
+    if (algo_bin_len == 0) {
+        ESP_LOGE(TAG, "Flash algo not found or corrupted!");
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    algo_bin = new uint8_t[algo_bin_len];
+    if (algo_bin == nullptr) {
+        ESP_LOGE(TAG, "Failed to allocate!");
+        return ESP_ERR_NO_MEM;
+    }
+
+    mpack_node_copy_data(algo_node, (char *) algo_bin, algo_bin_len);
+
     pc_init = mpack_node_u32(mpack_node_map_cstr(root, "pc_init"));
     pc_uninit = mpack_node_u32(mpack_node_map_cstr(root, "pc_uninit"));
     if (pc_init == 0 || pc_uninit == 0) {
@@ -79,8 +79,12 @@ esp_err_t flash_algo::parse()
     }
 
     target_name = new char[target_name_len + 1];
-    memset(target_name, 0, target_name_len + 1);
+    if (target_name == nullptr) {
+        ESP_LOGE(TAG, "Failed to allocate!");
+        return ESP_ERR_NO_MEM;
+    }
 
+    memset(target_name, 0, target_name_len + 1);
     mpack_node_copy_cstr(target_name_node, target_name, target_name_len);
 
     // Algorithm name
@@ -93,8 +97,123 @@ esp_err_t flash_algo::parse()
     }
 
     algo_name = new char[algo_name_len + 1];
+    if (algo_name == nullptr) {
+        ESP_LOGE(TAG, "Failed to allocate!");
+        return ESP_ERR_NO_MEM;
+    }
+
     memset(algo_name, 0, algo_name_len + 1);
     mpack_node_copy_cstr(algo_name_node, algo_name, algo_name_len);
 
+    sector.addr = mpack_node_u32(mpack_node_map_cstr(root, "sector_addr"));
+    sector.size = mpack_node_u32(mpack_node_map_cstr(root, "sector_size"));
+    if (sector.size == 0) {
+        ESP_LOGE(TAG, "Invalid sector size");
+        return ESP_ERR_INVALID_ARG;
+    }
+
     return ESP_OK;
 }
+
+flash_algo::~flash_algo()
+{
+    delete target_name;
+    delete algo_name;
+    delete algo_bin;
+}
+
+char *flash_algo::get_algo_name() const
+{
+    return algo_name;
+}
+
+char *flash_algo::get_target_name() const
+{
+    return target_name;
+}
+
+uint8_t *flash_algo::get_algo_bin() const
+{
+    return algo_bin;
+}
+
+uint32_t flash_algo::get_algo_bin_len() const
+{
+    return algo_bin_len;
+}
+
+uint32_t flash_algo::get_ram_size_byte() const
+{
+    return ram_size_byte;
+}
+
+uint32_t flash_algo::get_flash_size_byte() const
+{
+    return flash_size_byte;
+}
+
+uint32_t flash_algo::get_pc_init() const
+{
+    return pc_init;
+}
+
+uint32_t flash_algo::get_pc_uninit() const
+{
+    return pc_uninit;
+}
+
+uint32_t flash_algo::get_pc_program_page() const
+{
+    return pc_program_page;
+}
+
+uint32_t flash_algo::get_pc_erase_sector() const
+{
+    return pc_erase_sector;
+}
+
+uint32_t flash_algo::get_pc_erase_all() const
+{
+    return pc_erase_all;
+}
+
+uint32_t flash_algo::get_data_section_offset() const
+{
+    return data_section_offset;
+}
+
+uint32_t flash_algo::get_flash_start_addr() const
+{
+    return flash_start_addr;
+}
+
+uint32_t flash_algo::get_flash_end_addr() const
+{
+    return flash_end_addr;
+}
+
+uint32_t flash_algo::get_page_size() const
+{
+    return page_size;
+}
+
+uint32_t flash_algo::get_erased_byte_val() const
+{
+    return erased_byte_val;
+}
+
+uint32_t flash_algo::get_program_page_timeout() const
+{
+    return program_page_timeout;
+}
+
+uint32_t flash_algo::get_erase_sector_timeout() const
+{
+    return erase_sector_timeout;
+}
+
+const sector_info &flash_algo::get_sector() const
+{
+    return sector;
+}
+
