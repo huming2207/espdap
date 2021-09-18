@@ -5,12 +5,22 @@
 #include <esp_timer.h>
 #include <mbedtls/base64.h>
 #include <swd_prog.hpp>
+#include <swd_driver.hpp>
 
 
-
-extern "C" void app_main(void) {
+extern "C" void app_main(void)
+{
     static const char *TAG = "main";
     ESP_LOGI(TAG, "Hello from DAPLink!");
+
+//    auto &swd = swd_driver::instance();
+//    swd.init();
+//    swd.send_swj_sequence();
+//
+//    uint32_t idcode = 0;
+//    ESP_ERROR_CHECK(swd.read_idcode(&idcode));
+//
+//    ESP_LOGI(TAG, "IDCODE = 0x%x", idcode);
 
     auto &swd = swd_prog::instance();
 

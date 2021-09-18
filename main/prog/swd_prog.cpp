@@ -1,3 +1,5 @@
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <swd_host.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -94,7 +96,7 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
 
         ret = swd_flash_syscall_exec(
                 &syscall,
-                0x20000220, // Init PC = 1, +0x20 for header (but somehow actually 0?)
+                0x20000221, // Init PC = 1, +0x20 for header (but somehow actually 0?)
                 0x08000000, // r0 = flash base addr
                 0, // r1 = ignored
                 mode, 0, // r2 = mode, r3 ignored
@@ -227,6 +229,8 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t sector_size, uint
             ESP_LOGE(TAG, "Erase function returned an unknown error");
             return ESP_FAIL;
         }
+
+        vTaskDelay(1);
     }
 
     auto ret = run_algo_uninit(swd_def::ERASE);
@@ -280,9 +284,9 @@ esp_err_t swd_prog::program_page(uint32_t start_addr, const uint8_t *buf, size_t
                 0x20000f00, 0, // r1 = len, r2 = buf addr
                 FLASHALGO_RETURN_BOOL
         );
+
+        vTaskDelay(1);
     }
-
-
 
     if (swd_ret < 1) {
         ESP_LOGE(TAG, "Program function returned an unknown error");
