@@ -17,6 +17,11 @@ esp_err_t flash_algo::init(const uint8_t *mp_file, size_t len)
     }
 
     mpack_tree_init(&mp_tree, (const char *) mp_file, len);
+    if (mpack_tree_error(&mp_tree) != mpack_ok) {
+        ESP_LOGE(TAG, "Msgpack node tree failed to init");
+        mpack_tree_destroy(&mp_tree);
+        return ESP_ERR_NO_MEM;
+    }
 
     mpack_node_t root = mpack_tree_root(&mp_tree);
     auto algo_node = mpack_node_map_cstr(root, "algo");
@@ -120,6 +125,7 @@ flash_algo::~flash_algo()
     delete target_name;
     delete algo_name;
     delete algo_bin;
+    mpack_tree_destroy(&mp_tree);
 }
 
 char *flash_algo::get_algo_name() const
