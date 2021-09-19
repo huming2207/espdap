@@ -3,6 +3,7 @@ idf_component_register(
             "main.cpp"
             "prog/swd_prog.cpp" "prog/includes/swd_prog.hpp"
             "prog/flash_algo.cpp" "prog/includes/flash_algo.hpp"
+            "prog/manifest_mgr.cpp" "prog/includes/manifest_mgr.hpp"
             "driver/swd_driver.cpp" "driver/includes/swd_driver.hpp"
             "external/mpack.c" "external/includes/mpack.h"
         INCLUDE_DIRS
@@ -10,4 +11,5 @@ idf_component_register(
         PRIV_REQUIRES
             "daplink-esp"
             "mbedtls"
+            "spiffs"
 )

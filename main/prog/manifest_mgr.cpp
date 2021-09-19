@@ -20,12 +20,19 @@ esp_err_t manifest_mgr::init()
 
     mpack_tree_t tree = {};
     mpack_tree_init_filename(&tree, MANIFEST_PATH, 3072);
+    if (mpack_tree_error(&tree) != mpack_ok) {
+        ESP_LOGE(TAG, "Msgpack node tree failed to init");
+        mpack_tree_destroy(&tree);
+        return ESP_ERR_NO_MEM;
+    }
+
     mpack_tree_parse(&tree);
     mpack_node_t root = mpack_tree_root(&tree);
 
     auto root_arr_len = mpack_node_array_length(root);
     if (root_arr_len == 0) {
         ESP_LOGE(TAG, "Nothing provided in the manifest");
+        mpack_tree_destroy(&tree);
         return ESP_ERR_NOT_FOUND;
     }
 
@@ -33,6 +40,7 @@ esp_err_t manifest_mgr::init()
         ret = parse_manifest_item(root, idx);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed when decoding manifest @ idx = %u", idx);
+            mpack_tree_destroy(&tree);
             return ret;
         }
     }
@@ -70,7 +78,6 @@ esp_err_t manifest_mgr::parse_manifest_item(mpack_node_t node, size_t idx)
 
     char fw_name[128] = { 0 };
     mpack_node_copy_cstr(fw_name_node, fw_name, sizeof(fw_name));
-
 
     auto alg_name_node = mpack_node_map_cstr(item_node, "alg_name");
     auto alg_name_len = mpack_node_strlen(alg_name_node);
