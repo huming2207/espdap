@@ -28,7 +28,7 @@ esp_err_t manifest_mgr::init()
 
     fseek(file, 0, SEEK_END);
     size_t len = ftell(file);
-    if (len < 1 || len > MANIFEST_SIZE_BYTES) {
+    if (len < 1 || len > MANIFEST_SIZE_BYTES - 1) {
         ESP_LOGE(TAG, "Manifest in a wrong length: %u", len);
         return ESP_ERR_INVALID_STATE;
     }
