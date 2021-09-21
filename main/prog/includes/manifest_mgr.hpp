@@ -1,7 +1,6 @@
 #pragma once
 
 #include <esp_err.h>
-#include <mpack.h>
 #include <ArduinoJson.hpp>
 
 #define MANIFEST_SIZE_BYTES 3072
