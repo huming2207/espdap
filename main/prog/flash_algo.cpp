@@ -1,120 +1,52 @@
 #include <cstring>
 #include <esp_log.h>
 
-#include <mpack.h>
+#include <mbedtls/base64.h>
 #include "flash_algo.hpp"
 
-esp_err_t flash_algo::init(const uint8_t *mp_file, size_t len)
+using namespace ArduinoJson;
+
+esp_err_t flash_algo::init(const char *path)
 {
-    if (len > FLASH_ALGO_MAX_MP_SIZE) {
-        ESP_LOGE(TAG, "Msgpack size too large");
-        return ESP_ERR_INVALID_SIZE;
+    FILE *file = fopen(path, "r");
+    if (file == nullptr) {
+        ESP_LOGE(TAG, "Failed when reading file");
+        return ESP_ERR_NOT_FOUND;
     }
 
-    if (mp_file == nullptr) {
-        ESP_LOGE(TAG, "Msgpack buffer is null?");
-        return ESP_ERR_INVALID_ARG;
+    fseek(file, 0, SEEK_END);
+    size_t len = ftell(file);
+    if (len < 1 || len > FLASH_ALGO_MAX_FILE_SIZE - 1) {
+        ESP_LOGE(TAG, "Flash algorithm is in a wrong length: %u", len);
+        return ESP_ERR_INVALID_STATE;
     }
 
-    mpack_tree_init(&mp_tree, (const char *) mp_file, len);
-    if (mpack_tree_error(&mp_tree) != mpack_ok) {
-        ESP_LOGE(TAG, "Msgpack node tree failed to init");
-        mpack_tree_destroy(&mp_tree);
-        return ESP_ERR_NO_MEM;
+    fseek(file, 0, SEEK_SET);
+    fread(algo_buf, 1, len, file);
+    fclose(file);
+
+    if (deserializeJson(json_doc, algo_buf, FLASH_ALGO_MAX_FILE_SIZE) != DeserializationError::Ok) {
+        ESP_LOGE(TAG, "Failed to parse flash algorithm JSON");
+        return ESP_ERR_INVALID_STATE;
     }
 
-    mpack_node_t root = mpack_tree_root(&mp_tree);
-    auto algo_node = mpack_node_map_cstr(root, "algo");
-    algo_bin_len = mpack_node_bin_size(algo_node);
-    if (algo_bin_len == 0) {
+    const char *algo_encoded = json_doc["instructions"].as<const char *>();
+    if (algo_encoded == nullptr) {
         ESP_LOGE(TAG, "Flash algo not found or corrupted!");
         return ESP_ERR_NOT_FOUND;
     }
 
-    algo_bin = new uint8_t[algo_bin_len];
-    if (algo_bin == nullptr) {
-        ESP_LOGE(TAG, "Failed to allocate!");
-        return ESP_ERR_NO_MEM;
+    size_t algo_encoded_len = strlen(algo_encoded);
+    if (algo_encoded_len < 1) {
+        ESP_LOGE(TAG, "Flash algo too short");
+        return ESP_ERR_INVALID_SIZE;
     }
 
-    mpack_node_copy_data(algo_node, (char *) algo_bin, algo_bin_len);
-
-    pc_init = mpack_node_u32(mpack_node_map_cstr(root, "pc_init"));
-    pc_uninit = mpack_node_u32(mpack_node_map_cstr(root, "pc_uninit"));
-    if (pc_init == 0 || pc_uninit == 0) {
-        ESP_LOGE(TAG, "No init/uninit function found in the algorithm!");
-        return ESP_ERR_NOT_FOUND;
-    }
-
-    pc_program_page = mpack_node_u32(mpack_node_map_cstr(root, "pc_program_page"));
-    if (pc_program_page == 0) {
-        ESP_LOGE(TAG, "No program page function found in the algorithm!");
-        return ESP_ERR_NOT_FOUND;
-    }
-
-    pc_erase_sector = mpack_node_u32(mpack_node_map_cstr(root, "pc_erase_sector"));
-    if (pc_program_page == 0) {
-        ESP_LOGE(TAG, "No erase sector function found in the algorithm!");
-        return ESP_ERR_NOT_FOUND;
-    }
-
-    pc_erase_all = mpack_node_u32(mpack_node_map_cstr(root, "pc_erase_all"));
-    ram_size_byte = mpack_node_u32(mpack_node_map_cstr(root, "ram_size"));
-    flash_size_byte = mpack_node_u32(mpack_node_map_cstr(root, "flash_size_byte"));
-    flash_start_addr = mpack_node_u32(mpack_node_map_cstr(root, "flash_start_addr"));
-    flash_end_addr = mpack_node_u32(mpack_node_map_cstr(root, "flash_end_addr"));
-    if (ram_size_byte == 0 || flash_size_byte == 0 || flash_start_addr == 0 || flash_end_addr == 0) {
-        ESP_LOGE(TAG, "Flash details not sufficient");
-        return ESP_ERR_NOT_FOUND;
-    }
-
-    page_size = mpack_node_u32(mpack_node_map_cstr(root, "page_size"));
-    erased_byte_val = mpack_node_u32(mpack_node_map_cstr(root, "erased_byte_val"));
-    program_page_timeout = mpack_node_u32(mpack_node_map_cstr(root, "program_page_timeout"));
-    erase_sector_timeout = mpack_node_u32(mpack_node_map_cstr(root, "erase_sector_timeout"));
-    data_section_offset = mpack_node_u32(mpack_node_map_cstr(root, "data_section_offset"));
-
-    // Target name
-    auto target_name_node = mpack_node_map_cstr(root, "target_name");
-    auto target_name_len = mpack_node_strlen(target_name_node);
-
-    if (target_name_len < 1 || target_name_len > 255) {
-        ESP_LOGE(TAG, "No target name given, or too long");
-        return ESP_ERR_NOT_FOUND;
-    }
-
-    target_name = new char[target_name_len + 1];
-    if (target_name == nullptr) {
-        ESP_LOGE(TAG, "Failed to allocate!");
-        return ESP_ERR_NO_MEM;
-    }
-
-    memset(target_name, 0, target_name_len + 1);
-    mpack_node_copy_cstr(target_name_node, target_name, target_name_len);
-
-    // Algorithm name
-    auto algo_name_node = mpack_node_map_cstr(root, "algo_name");
-    auto algo_name_len = mpack_node_strlen(algo_name_node);
-
-    if (algo_name_len < 1 || algo_name_len > 255) {
-        ESP_LOGE(TAG, "No algorithm name given, or too long: ");
-        return ESP_ERR_NOT_FOUND;
-    }
-
-    algo_name = new char[algo_name_len + 1];
-    if (algo_name == nullptr) {
-        ESP_LOGE(TAG, "Failed to allocate!");
-        return ESP_ERR_NO_MEM;
-    }
-
-    memset(algo_name, 0, algo_name_len + 1);
-    mpack_node_copy_cstr(algo_name_node, algo_name, algo_name_len);
-
-    sector.addr = mpack_node_u32(mpack_node_map_cstr(root, "sector_addr"));
-    sector.size = mpack_node_u32(mpack_node_map_cstr(root, "sector_size"));
-    if (sector.size == 0) {
-        ESP_LOGE(TAG, "Invalid sector size");
-        return ESP_ERR_INVALID_ARG;
+    if (mbedtls_base64_decode(
+            algo_bin, algo_encoded_len, &algo_bin_len,
+            (uint8_t *)algo_encoded, algo_encoded_len) < 0) {
+        ESP_LOGE(TAG, "Flash algorithm base64 decode fail");
+        return ESP_ERR_INVALID_STATE;
     }
 
     return ESP_OK;
@@ -122,20 +54,17 @@ esp_err_t flash_algo::init(const uint8_t *mp_file, size_t len)
 
 flash_algo::~flash_algo()
 {
-    delete target_name;
-    delete algo_name;
-    delete algo_bin;
-    mpack_tree_destroy(&mp_tree);
+    delete[] algo_buf;
 }
 
-char *flash_algo::get_algo_name() const
+const char *flash_algo::get_algo_name() const
 {
-    return algo_name;
+    return json_doc["name"].as<const char *>();
 }
 
-char *flash_algo::get_target_name() const
+const char *flash_algo::get_target_name() const
 {
-    return target_name;
+    return json_doc["description"].as<const char *>();
 }
 
 uint8_t *flash_algo::get_algo_bin() const
@@ -150,76 +79,75 @@ uint32_t flash_algo::get_algo_bin_len() const
 
 uint32_t flash_algo::get_ram_size_byte() const
 {
-    return ram_size_byte;
+    return json_doc["ramSize"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_flash_size_byte() const
 {
-    return flash_size_byte;
+    return json_doc["flashSize"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_pc_init() const
 {
-    return pc_init;
+    return json_doc["pcInit"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_pc_uninit() const
 {
-    return pc_uninit;
+    return json_doc["pcUninit"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_pc_program_page() const
 {
-    return pc_program_page;
+    return json_doc["pcProgramPage"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_pc_erase_sector() const
 {
-    return pc_erase_sector;
+    return json_doc["pcEraseSector"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_pc_erase_all() const
 {
-    return pc_erase_all;
+    return json_doc["pcEraseAll"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_data_section_offset() const
 {
-    return data_section_offset;
+    return json_doc["dataSectionOffset"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_flash_start_addr() const
 {
-    return flash_start_addr;
+    return json_doc["flashStartAddr"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_flash_end_addr() const
 {
-    return flash_end_addr;
+    return json_doc["flashEndAddr"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_page_size() const
 {
-    return page_size;
+    return json_doc["flashPageSize"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_erased_byte_val() const
 {
-    return erased_byte_val;
+    return json_doc["erasedByteValue"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_program_page_timeout() const
 {
-    return program_page_timeout;
+    return json_doc["programTimeout"].as<uint32_t>();
 }
 
 uint32_t flash_algo::get_erase_sector_timeout() const
 {
-    return erase_sector_timeout;
+    return json_doc["eraseTimeout"].as<uint32_t>();
 }
 
-const sector_info &flash_algo::get_sector() const
+uint32_t flash_algo::get_sector_size() const
 {
-    return sector;
+    return json_doc["flashSectorSize"].as<uint32_t>();
 }
-
