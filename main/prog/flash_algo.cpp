@@ -30,6 +30,8 @@ esp_err_t flash_algo::init(const char *path)
         return ESP_ERR_INVALID_STATE;
     }
 
+    json_doc.shrinkToFit();
+
     const char *algo_encoded = json_doc["instructions"].as<const char *>();
     if (algo_encoded == nullptr) {
         ESP_LOGE(TAG, "Flash algo not found or corrupted!");

@@ -1,6 +1,5 @@
 #include <esp_spiffs.h>
 #include <esp_log.h>
-#include <mpack.h>
 #include <ArduinoJson.hpp>
 #include "manifest_mgr.hpp"
 
@@ -41,6 +40,8 @@ esp_err_t manifest_mgr::init()
         ESP_LOGE(TAG, "Failed to parse manifest JSON");
         return ESP_ERR_INVALID_STATE;
     }
+
+    json_doc.shrinkToFit();
 
     auto root_array = json_doc.as<JsonArrayConst>();
     for(auto item : root_array) {
