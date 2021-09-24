@@ -49,7 +49,13 @@ esp_err_t flash_algo::init(const char *path)
             (uint8_t *)algo_encoded, algo_encoded_len) < 0) {
         ESP_LOGE(TAG, "Flash algorithm base64 decode fail");
         return ESP_ERR_INVALID_STATE;
+    } else {
+        ESP_LOGI(TAG, "Decoded flash algorithm length: %u", algo_bin_len);
     }
+
+    ESP_LOGI(TAG, "Algo name: %s, description: %s", get_algo_name(), get_target_name());
+    ESP_LOGI(TAG, "Functions: init: 0x%x; uninit: 0x%x, erase_sector: 0x%x, erase_all: 0x%x, program_page: 0x%x",
+             get_pc_init(), get_pc_uninit(), get_pc_erase_sector(), get_pc_erase_all(), get_pc_program_page());
 
     return ESP_OK;
 }
