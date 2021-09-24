@@ -34,7 +34,7 @@ private:
     static SWD_FAST_FUNC_ATTR uint32_t calc_parity_32(uint32_t reg);
 
 public:
-    esp_err_t init(gpio_num_t swclk = GPIO_NUM_12, gpio_num_t swdio = GPIO_NUM_11, uint32_t freq_hz = 5000000, spi_host_device_t host = SPI2_HOST);
+    esp_err_t init(gpio_num_t swclk = GPIO_NUM_1, gpio_num_t swdio = GPIO_NUM_2, uint32_t freq_hz = 5000000, spi_host_device_t host = SPI2_HOST);
     void IRAM_ATTR send_swj_sequence();
     esp_err_t IRAM_ATTR read_idcode(uint32_t *idcode);
 };

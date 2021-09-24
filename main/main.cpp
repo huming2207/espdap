@@ -6,25 +6,24 @@
 #include <mbedtls/base64.h>
 #include <swd_prog.hpp>
 #include <swd_driver.hpp>
-
+#include <flash_algo.hpp>
+#include <manifest_mgr.hpp>
+#include <led_ctrl.hpp>
 
 extern "C" void app_main(void)
 {
     static const char *TAG = "main";
     ESP_LOGI(TAG, "Hello from DAPLink!");
 
-//    auto &swd = swd_driver::instance();
-//    swd.init();
-//    swd.send_swj_sequence();
-//
-//    uint32_t idcode = 0;
-//    ESP_ERROR_CHECK(swd.read_idcode(&idcode));
-//
-//    ESP_LOGI(TAG, "IDCODE = 0x%x", idcode);
+    auto &manifest = manifest_mgr::instance();
+    ESP_ERROR_CHECK(manifest.init());
+
+    flash_algo algo;
+    ESP_ERROR_CHECK(algo.init("/soul/flash_algo.json"));
 
     auto &swd = swd_prog::instance();
 
-    ESP_ERROR_CHECK(swd.init());
+    ESP_ERROR_CHECK(swd.init(&algo));
     ESP_LOGI(TAG, "Inited");
 
     ESP_ERROR_CHECK(swd.erase_sector(0x08000000, 128, 0x08020000));
@@ -38,7 +37,7 @@ extern "C" void app_main(void)
 
     memset(buf, 0x5a, 1024);
 
-    ESP_ERROR_CHECK(swd.init());
+    ESP_ERROR_CHECK(swd.init(&algo));
     ESP_LOGI(TAG, "Re-Inited");
 
     int64_t ts = esp_timer_get_time();
