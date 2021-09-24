@@ -2,6 +2,7 @@
 
 #include <esp_err.h>
 #include <swd_host.h>
+#include "flash_algo.hpp"
 
 namespace swd_def
 {
@@ -40,6 +41,10 @@ private:
     swd_def::state state = swd_def::UNKNOWN;
     program_syscall_t syscall = {};
     uint32_t code_start = 0;
+    uint32_t func_offset = 0;
+    uint32_t ram_addr = 0;
+    uint32_t stack_size = 0;
+    flash_algo *algo = nullptr;
 
     static const uint32_t header_blob[];
 
@@ -50,7 +55,7 @@ private:
     esp_err_t run_algo_uninit(swd_def::init_mode mode);
 
 public:
-    esp_err_t init();
+    esp_err_t init(flash_algo *algo, uint32_t ram_addr = 0x20000000, uint32_t stack_size_byte = 0x200);
     esp_err_t erase_sector(uint32_t start_addr, uint32_t sector_size, uint32_t end_addr);
     esp_err_t program_page(uint32_t start_addr, const uint8_t *buf, size_t len);
 
