@@ -78,12 +78,14 @@ esp_err_t manifest_mgr::parse_manifest_item(JsonVariantConst item)
         return ESP_ERR_INVALID_SIZE;
     }
 
-    const char *alg_name = item["fwName"].as<const char *>();
+    const char *alg_name = item["algName"].as<const char *>();
     size_t alg_name_len = strlen(fw_name);
     if (fw_name_len < 1 || fw_name_len > 127) {
         ESP_LOGE(TAG, "Invalid algorithm file name size: %u", alg_name_len);
         return ESP_ERR_INVALID_SIZE;
     }
+
+    ESP_LOGI(TAG, "Parsed manifest item: %s, %s, FW CRC: 0x%x, Alg CRC: 0x%x", fw_name, alg_name, fw_checksum, alg_checksum);
 
     manifest_cnt += 1;
     manifests[manifest_cnt - 1].fw_name = strdup(fw_name);
