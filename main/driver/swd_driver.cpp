@@ -22,7 +22,6 @@ esp_err_t swd_driver::init(gpio_num_t swclk, gpio_num_t swdio, uint32_t freq_hz,
     spi_bus_config.quadwp_io_num   = -1;
     spi_bus_config.quadhd_io_num   = -1;
     spi_bus_config.max_transfer_sz = 0;
-    spi_bus_config.flags = SPICOMMON_BUSFLAG_IOMUX_PINS;
 
     auto ret = spi_bus_initialize(host, &spi_bus_config, 0);
     if (ret != ESP_OK) {

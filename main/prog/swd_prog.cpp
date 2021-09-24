@@ -4,7 +4,6 @@
 #include <esp_log.h>
 #include <esp_timer.h>
 #include <cstring>
-#include <mbedtls/base64.h>
 #include "swd_prog.hpp"
 
 #define TAG "swd_prog"
@@ -35,9 +34,6 @@ esp_err_t swd_prog::load_flash_algorithm()
         state = swd_def::UNKNOWN;
         return ESP_ERR_INVALID_STATE;
     }
-
-//    ESP_LOG_BUFFER_HEX(TAG, header_blob, sizeof(header_blob));
-//    ESP_LOG_BUFFER_HEX(TAG, flash_algo_decoded, flash_algo_len);
 
     // Mem structure: 512 bytes stack + flash algorithm binary + buffer
     ret = swd_write_memory(code_start, (uint8_t *)header_blob, sizeof(header_blob));
@@ -75,6 +71,8 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
             return ESP_ERR_INVALID_STATE;
         }
 
+        auto pc_init = algo->get_pc_init();
+
         ret = swd_wait_until_halted();
         if (ret < 1) {
             ESP_LOGE(TAG, "Timeout when halting");
@@ -84,7 +82,7 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
 
         ret = swd_flash_syscall_exec(
                 &syscall,
-                func_offset + algo->get_pc_init(), // Init PC (usually) = 1, +0x20 for header (but somehow actually 0?)
+                func_offset + pc_init, // Init PC (usually) = 1, +0x20 for header (but somehow actually 0?)
                 algo->get_flash_start_addr(), // r0 = flash base addr
                 0, // r1 = ignored
                 mode, 0, // r2 = mode, r3 ignored
@@ -114,6 +112,8 @@ esp_err_t swd_prog::run_algo_uninit(swd_def::init_mode mode)
         return ESP_ERR_INVALID_STATE;
     }
 
+    auto pc_init = algo->get_pc_uninit();
+
     ret = swd_wait_until_halted();
     if (ret < 1) {
         ESP_LOGE(TAG, "Timeout when halting");
@@ -123,7 +123,7 @@ esp_err_t swd_prog::run_algo_uninit(swd_def::init_mode mode)
 
     ret = swd_flash_syscall_exec(
             &syscall,
-            func_offset + algo->get_pc_uninit(), // UnInit PC = 61
+            func_offset + pc_init, // UnInit PC = 61
             mode,
             0, 0, 0, // r2, r3 = ignored
             FLASHALGO_RETURN_BOOL
@@ -210,16 +210,16 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t sector_size, uint
         return ESP_ERR_INVALID_STATE;
     }
 
+    auto pc_erase_sector = algo->get_pc_erase_sector();
+    auto flash_start_addr = algo->get_flash_start_addr();
+    auto flash_sector_size = algo->get_sector_size();
+
     swd_ret = swd_wait_until_halted();
     if (swd_ret < 1) {
         ESP_LOGE(TAG, "Timeout when halting");
         state = swd_def::UNKNOWN;
         return ESP_ERR_INVALID_STATE;
     }
-
-    auto pc_erase_sector = algo->get_pc_erase_sector();
-    auto flash_start_addr = algo->get_flash_start_addr();
-    auto flash_sector_size = algo->get_sector_size();
 
     for (uint32_t idx = 0; idx < sector_cnt - 1; idx += 1) {
         swd_ret = swd_flash_syscall_exec(
@@ -266,6 +266,9 @@ esp_err_t swd_prog::program_page(uint32_t start_addr, const uint8_t *buf, size_t
         return ESP_ERR_INVALID_STATE;
     }
 
+    auto pc_program_page = algo->get_pc_program_page();
+    auto flash_start_addr = algo->get_flash_start_addr();
+    auto page_size = algo->get_page_size();
 
     swd_ret = swd_wait_until_halted();
     if (swd_ret < 1) {
@@ -280,10 +283,6 @@ esp_err_t swd_prog::program_page(uint32_t start_addr, const uint8_t *buf, size_t
         state = swd_def::UNKNOWN;
         return ESP_ERR_INVALID_STATE;
     }
-
-    auto pc_program_page = algo->get_pc_program_page();
-    auto flash_start_addr = algo->get_flash_start_addr();
-    auto page_size = algo->get_page_size();
 
     for (uint32_t page_idx = 0; page_idx < len / 1024; page_idx += 1) {
         ESP_LOGI(TAG, "Writing page 0x%x", 0x08000000 + (page_idx * 1024));
