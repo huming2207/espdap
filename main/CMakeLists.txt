@@ -13,3 +13,5 @@ idf_component_register(
             "mbedtls"
             "spiffs"
 )
+
+spiffs_create_partition_image(storage fs_sample FLASH_IN_PROJECT)
