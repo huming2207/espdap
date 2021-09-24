@@ -5,9 +5,9 @@
 #include <esp_err.h>
 #include <ArduinoJson.hpp>
 
-#define FLASH_ALGO_MAX_FILE_SIZE 30720
-#define FLASH_ALGO_JSON_DOC_SIZE 40960
-#define FLASH_ALGO_BIN_SIZE 20480
+#define FLASH_ALGO_MAX_FILE_SIZE 8192
+#define FLASH_ALGO_JSON_DOC_SIZE 10240
+#define FLASH_ALGO_BIN_SIZE 6150
 
 struct sector_info
 {
