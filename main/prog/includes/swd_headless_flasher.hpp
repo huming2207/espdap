@@ -2,6 +2,7 @@
 
 #include <flash_algo.hpp>
 #include <led_ctrl.hpp>
+#include <manifest_mgr.hpp>
 #include <esp_err.h>
 #include "swd_prog.hpp"
 
@@ -32,9 +33,11 @@ public:
 
 private:
     swd_headless_flasher() = default;
+    uint32_t written_len = 0;
     flash_algo algo = {};
     led_ctrl &led = led_ctrl::instance();
     swd_prog &swd = swd_prog::instance();
+    manifest_mgr &manifest = manifest_mgr::instance();
     flasher::pg_state state = flasher::DETECT;
 
     static const constexpr char *TAG = "swd_hdls_flr";
@@ -47,6 +50,7 @@ private:
     void on_error();
     void on_erase();
     void on_program();
+    void on_verify();
     void on_done();
 };
 
