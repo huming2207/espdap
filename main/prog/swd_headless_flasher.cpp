@@ -2,10 +2,9 @@
 #include <freertos/task.h>
 #include <esp_err.h>
 #include <esp_log.h>
-
-#include <flash_algo.hpp>
 #include <led_ctrl.hpp>
-#include <manifest_mgr.hpp>
+#include <esp_crc.h>
+#include <file_utils.hpp>
 #include "swd_headless_flasher.hpp"
 
 esp_err_t swd_headless_flasher::init()
@@ -13,9 +12,11 @@ esp_err_t swd_headless_flasher::init()
     auto ret = led.init(GPIO_NUM_18);
     led.set_color(60,0,0,30);
 
-    auto &manifest = manifest_mgr::instance();
     ret = ret ?: manifest.init();
     ret = ret ?: algo.init("/soul/flash_algo.json");
+
+    ret = ret ?: file_utils::validate_firmware_file("/soul/firmware.bin", manifest.get_manifests()[0].fw_checksum);
+    if (ret != ESP_OK) return ret;
 
     while (true) {
         switch (state) {
@@ -40,6 +41,10 @@ esp_err_t swd_headless_flasher::init()
             }
             case flasher::DONE: {
                 on_done();
+                break;
+            }
+            case flasher::VERIFY: {
+                on_verify();
                 break;
             }
         }
@@ -73,7 +78,18 @@ void swd_headless_flasher::on_erase()
 
 void swd_headless_flasher::on_program()
 {
-    state = flasher::DONE;
+    char path[128] = { 0 };
+    snprintf(path, sizeof(path), "/soul/%s", manifest.get_manifests()[0].fw_name);
+    int64_t ts = esp_timer_get_time();
+    auto ret = swd.program_file(path, &written_len);
+    if (ret != ESP_OK) {
+        state = flasher::ERROR;
+    } else {
+        ts = esp_timer_get_time() - ts;
+        double speed = written_len / ((double)ts / 1000000.0);
+        ESP_LOGI(TAG, "Firmware written, len: %u, speed: %.2f bytes per sec", written_len, speed);
+        state = flasher::VERIFY;
+    }
 }
 
 void swd_headless_flasher::on_detect()
@@ -95,4 +111,13 @@ void swd_headless_flasher::on_done()
     vTaskDelay(pdMS_TO_TICKS(50));
     led.set_color(0, 0, 0, 50);
     vTaskDelay(pdMS_TO_TICKS(200));
+}
+
+void swd_headless_flasher::on_verify()
+{
+    if (swd.verify(manifest.get_manifests()[0].fw_checksum, UINT32_MAX, written_len) != ESP_OK) {
+        state = flasher::ERROR;
+    } else {
+        state = flasher::DONE;
+    }
 }
