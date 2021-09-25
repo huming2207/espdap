@@ -2,6 +2,7 @@
 
 #include <esp_err.h>
 #include <swd_host.h>
+#include <led_ctrl.hpp>
 #include "flash_algo.hpp"
 
 namespace swd_def
@@ -45,6 +46,7 @@ private:
     uint32_t ram_addr = 0;
     uint32_t stack_size = 0;
     flash_algo *algo = nullptr;
+    led_ctrl &led = led_ctrl::instance();
 
     static const uint32_t header_blob[];
 
