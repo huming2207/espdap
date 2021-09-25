@@ -237,7 +237,11 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t sector_size, uint
             return ESP_FAIL;
         }
 
-        vTaskDelay(1);
+        if(idx % 10 == 0) {
+            led.set_color(0, 0, 160, 50);
+        } else {
+            led.set_color(0, 0, 0, 50);
+        }
     }
 
     auto ret = run_algo_uninit(swd_def::ERASE);
@@ -295,15 +299,15 @@ esp_err_t swd_prog::program_page(uint32_t start_addr, const uint8_t *buf, size_t
                 FLASHALGO_RETURN_BOOL
         );
 
-        vTaskDelay(1);
+        if(page_idx % 2 == 0) {
+            led.set_color(60, 60, 0, 20);
+        } else {
+            led.set_color(0, 0, 0, 20);
+        }
     }
 
     if (swd_ret < 1) {
         ESP_LOGE(TAG, "Program function returned an unknown error");
-        uint32_t err_sr = 0;
-        swd_read_word(0x40022018, &err_sr);
-        ESP_LOGW(TAG, "FLASH_SR = 0x%x", err_sr);
-
         state = swd_def::UNKNOWN;
         return ESP_ERR_INVALID_STATE;
     }
