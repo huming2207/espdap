@@ -323,7 +323,7 @@ esp_err_t swd_prog::program_page(const uint8_t *buf, size_t len, uint32_t start_
     return ret;
 }
 
-esp_err_t swd_prog::program_file(const char *path, uint32_t start_addr)
+esp_err_t swd_prog::program_file(const char *path, uint32_t *len_written, uint32_t start_addr)
 {
     if (path == nullptr) {
         ESP_LOGE(TAG, "Path is null!");
@@ -342,6 +342,10 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t start_addr)
         ESP_LOGE(TAG, "Manifest in a wrong length: %u", len);
         fclose(file);
         return ESP_ERR_INVALID_STATE;
+    }
+
+    if (len_written != nullptr) {
+        *len_written = len;
     }
 
     fseek(file, 0, SEEK_SET);
@@ -376,7 +380,7 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t start_addr)
     auto *buf = new uint8_t[page_size];
     memset(buf, 0, page_size);
 
-    for (uint32_t page_idx = 0; page_idx < (len / page_size); page_idx += 1) {
+    for (uint32_t page_idx = 0; page_idx < ((len / page_size) + ((len % page_size != 0) ? 1 : 0)); page_idx += 1) {
         uint32_t write_size = std::min(page_size, remain_len);
         size_t read_len = fread(buf, 1, write_size, file);
         if (read_len != write_size) {
@@ -384,14 +388,15 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t start_addr)
             write_size = read_len;
         }
 
-        swd_ret = swd_write_memory(0x20000f00, (uint8_t *)(buf + (page_idx * page_size)), write_size);
+        swd_ret = swd_write_memory(0x20000f00, (uint8_t *)buf, write_size);
         if (swd_ret < 1) {
             ESP_LOGE(TAG, "Failed when writing RAM cache");
+            delete[] buf;
             state = swd_def::UNKNOWN;
             return ESP_ERR_INVALID_STATE;
         }
 
-        ESP_LOGI(TAG, "Writing page 0x%x, size %u", 0x08000000 + (page_idx * 1024), write_size);
+        ESP_LOGD(TAG, "Writing page 0x%x, size %u", addr_offset + (page_idx * page_size), write_size);
         swd_ret = swd_flash_syscall_exec(
                 &syscall,
                 func_offset + pc_program_page, // ErasePage PC = 305
@@ -409,6 +414,8 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t start_addr)
 
         remain_len -= write_size;
     }
+
+    delete[] buf;
 
     if (swd_ret < 1) {
         ESP_LOGE(TAG, "Program function returned an unknown error");
@@ -433,14 +440,16 @@ esp_err_t swd_prog::verify(uint32_t expected_crc, uint32_t start_addr, size_t le
         return ESP_ERR_INVALID_STATE;
     }
 
+    uint32_t actual_read_addr = (start_addr == UINT32_MAX) ? algo->get_flash_start_addr() : start_addr;
+    uint32_t actual_len = (len == 0) ? (algo->get_flash_end_addr() - algo->get_flash_start_addr()) : len;
     uint32_t actual_crc = 0;
-    size_t remain_len = len;
+    size_t remain_len = actual_len;
     uint32_t offset = 0;
 
     while(remain_len > 0) {
         uint8_t buf[1024] = { 0 };
         uint32_t read_len = std::min((uint32_t)(sizeof(buf)), remain_len);
-        swd_ret = swd_read_memory((start_addr + offset), buf, read_len);
+        swd_ret = swd_read_memory((actual_read_addr + offset), buf, read_len);
         if (swd_ret < 1) {
             ESP_LOGE(TAG, "Failed when reading flash");
             return ESP_ERR_INVALID_STATE;
