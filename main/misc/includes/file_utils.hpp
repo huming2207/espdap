@@ -4,6 +4,9 @@
 
 class file_utils
 {
+private:
+    static const constexpr char *TAG = "file_utils";
+
 public:
     static esp_err_t validate_firmware_file(const char *path, uint32_t crc)
     {
