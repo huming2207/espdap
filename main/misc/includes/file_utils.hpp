@@ -1,6 +1,7 @@
 #pragma once
 
 #include <esp_err.h>
+#include <algorithm>
 
 class file_utils
 {
