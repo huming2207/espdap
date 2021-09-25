@@ -4,6 +4,7 @@
 #include <esp_log.h>
 #include <esp_timer.h>
 #include <cstring>
+#include <esp_crc.h>
 #include "swd_prog.hpp"
 
 #define TAG "swd_prog"
@@ -249,7 +250,7 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t end_addr)
     return ret;
 }
 
-esp_err_t swd_prog::program_page(uint32_t start_addr, const uint8_t *buf, size_t len)
+esp_err_t swd_prog::program_page(const uint8_t *buf, size_t len, uint32_t start_addr)
 {
     if (len % 4 != 0) {
         ESP_LOGE(TAG, "Length is not 32-bit word aligned");
@@ -279,20 +280,23 @@ esp_err_t swd_prog::program_page(uint32_t start_addr, const uint8_t *buf, size_t
         return ESP_ERR_INVALID_STATE;
     }
 
-    swd_ret = swd_write_memory(0x20000f00, (uint8_t *)buf, len); // TODO: wrap or limit length?
-    if (swd_ret < 1) {
-        ESP_LOGE(TAG, "Failed when writing RAM cache");
-        state = swd_def::UNKNOWN;
-        return ESP_ERR_INVALID_STATE;
-    }
+    uint32_t addr_offset = flash_start_addr + (start_addr == UINT32_MAX ? 0 : start_addr);
+    uint32_t remain_len = len;
+    for (uint32_t page_idx = 0; page_idx < (len / page_size); page_idx += 1) {
+        uint32_t write_size = std::min(page_size, remain_len);
+        swd_ret = swd_write_memory(0x20000f00, (uint8_t *)(buf + (page_idx * page_size)), write_size);
+        if (swd_ret < 1) {
+            ESP_LOGE(TAG, "Failed when writing RAM cache");
+            state = swd_def::UNKNOWN;
+            return ESP_ERR_INVALID_STATE;
+        }
 
-    for (uint32_t page_idx = 0; page_idx < len / 1024; page_idx += 1) {
-        ESP_LOGI(TAG, "Writing page 0x%x", 0x08000000 + (page_idx * 1024));
+        ESP_LOGI(TAG, "Writing page 0x%x, size %u", 0x08000000 + (page_idx * 1024), write_size);
         swd_ret = swd_flash_syscall_exec(
                 &syscall,
                 func_offset + pc_program_page, // ErasePage PC = 305
-                flash_start_addr + (page_idx * page_size), // r0 = flash base addr
-                page_size,
+                addr_offset + (page_idx * page_size), // r0 = flash base addr
+                write_size,
                 0x20000f00, 0, // r1 = len, r2 = buf addr
                 FLASHALGO_RETURN_BOOL
         );
@@ -302,6 +306,8 @@ esp_err_t swd_prog::program_page(uint32_t start_addr, const uint8_t *buf, size_t
         } else {
             led.set_color(0, 0, 0, 20);
         }
+
+        remain_len -= write_size;
     }
 
     if (swd_ret < 1) {
@@ -315,4 +321,142 @@ esp_err_t swd_prog::program_page(uint32_t start_addr, const uint8_t *buf, size_t
 
     state = swd_def::FLASH_ALG_UNINITED;
     return ret;
+}
+
+esp_err_t swd_prog::program_file(const char *path, uint32_t start_addr)
+{
+    if (path == nullptr) {
+        ESP_LOGE(TAG, "Path is null!");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    FILE *file = fopen(path, "rb");
+    if (file == nullptr) {
+        ESP_LOGE(TAG, "Failed when reading firmware file");
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    fseek(file, 0, SEEK_END);
+    size_t len = ftell(file);
+    if (len < 4 || len % 4 != 0) {
+        ESP_LOGE(TAG, "Manifest in a wrong length: %u", len);
+        fclose(file);
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    fseek(file, 0, SEEK_SET);
+
+    if (state != swd_def::FLASH_ALG_INITED) {
+        auto ret = run_algo_init(swd_def::PROGRAM);
+        if (ret != ESP_OK) return ret;
+    }
+
+    auto swd_ret = swd_halt_target();
+    if (swd_ret < 1) {
+        ESP_LOGE(TAG, "Failed when halting");
+        state = swd_def::UNKNOWN;
+        fclose(file);
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    auto pc_program_page = algo->get_pc_program_page();
+    auto flash_start_addr = algo->get_flash_start_addr();
+    auto page_size = algo->get_page_size();
+
+    swd_ret = swd_wait_until_halted();
+    if (swd_ret < 1) {
+        ESP_LOGE(TAG, "Timeout when halting");
+        state = swd_def::UNKNOWN;
+        fclose(file);
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    uint32_t addr_offset = flash_start_addr + (start_addr == UINT32_MAX ? 0 : start_addr);
+    uint32_t remain_len = len;
+    auto *buf = new uint8_t[page_size];
+    memset(buf, 0, page_size);
+
+    for (uint32_t page_idx = 0; page_idx < (len / page_size); page_idx += 1) {
+        uint32_t write_size = std::min(page_size, remain_len);
+        size_t read_len = fread(buf, 1, write_size, file);
+        if (read_len != write_size) {
+            ESP_LOGW(TAG, "Trying to read %u bytes but got only %u bytes", write_size, read_len);
+            write_size = read_len;
+        }
+
+        swd_ret = swd_write_memory(0x20000f00, (uint8_t *)(buf + (page_idx * page_size)), write_size);
+        if (swd_ret < 1) {
+            ESP_LOGE(TAG, "Failed when writing RAM cache");
+            state = swd_def::UNKNOWN;
+            return ESP_ERR_INVALID_STATE;
+        }
+
+        ESP_LOGI(TAG, "Writing page 0x%x, size %u", 0x08000000 + (page_idx * 1024), write_size);
+        swd_ret = swd_flash_syscall_exec(
+                &syscall,
+                func_offset + pc_program_page, // ErasePage PC = 305
+                addr_offset + (page_idx * page_size), // r0 = flash base addr
+                write_size,
+                0x20000f00, 0, // r1 = len, r2 = buf addr
+                FLASHALGO_RETURN_BOOL
+        );
+
+        if(page_idx % 2 == 0) {
+            led.set_color(60, 60, 0, 20);
+        } else {
+            led.set_color(0, 0, 0, 20);
+        }
+
+        remain_len -= write_size;
+    }
+
+    if (swd_ret < 1) {
+        ESP_LOGE(TAG, "Program function returned an unknown error");
+        state = swd_def::UNKNOWN;
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    fclose(file);
+    auto ret = run_algo_uninit(swd_def::PROGRAM);
+    if (ret != ESP_OK) return ret;
+
+    state = swd_def::FLASH_ALG_UNINITED;
+    return ret;
+}
+
+esp_err_t swd_prog::verify(uint32_t expected_crc, uint32_t start_addr, size_t len)
+{
+    auto swd_ret = swd_halt_target();
+    if (swd_ret < 1) {
+        ESP_LOGE(TAG, "Failed when halting");
+        state = swd_def::UNKNOWN;
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    uint32_t actual_crc = 0;
+    size_t remain_len = len;
+    uint32_t offset = 0;
+
+    while(remain_len > 0) {
+        uint8_t buf[1024] = { 0 };
+        uint32_t read_len = std::min((uint32_t)(sizeof(buf)), remain_len);
+        swd_ret = swd_read_memory((start_addr + offset), buf, read_len);
+        if (swd_ret < 1) {
+            ESP_LOGE(TAG, "Failed when reading flash");
+            return ESP_ERR_INVALID_STATE;
+        }
+
+        actual_crc = esp_crc32_le(actual_crc, buf, read_len);
+        offset += read_len;
+        remain_len -= read_len;
+    }
+
+    if (expected_crc != actual_crc) {
+        ESP_LOGE(TAG, "CRC mismatched, expected 0x%x, actual 0x%x", expected_crc, actual_crc);
+        return ESP_ERR_INVALID_CRC;
+    } else {
+        ESP_LOGI(TAG, "CRC matched, expected 0x%x, actual 0x%x", expected_crc, actual_crc);
+    }
+
+    return ESP_OK;
 }
