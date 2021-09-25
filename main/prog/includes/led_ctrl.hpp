@@ -13,7 +13,7 @@ public:
         return instance;
     }
 
-    led_ctrl(manifest_mgr const &) = delete;
+    led_ctrl(led_ctrl const &) = delete;
     void operator=(led_ctrl const &) = delete;
 
 private:
@@ -41,7 +41,7 @@ public:
     void set_color(uint8_t r, uint8_t g, uint8_t b, uint32_t wait_ms)
     {
         rmt_item32_t led_data_buffer[24] = {};
-        uint32_t bits_to_send = ((r << 16u) | (g << 8u) | b);
+        uint32_t bits_to_send = ((g << 16u) | (r << 8u) | b);
         uint32_t mask = 1 << (24 - 1);
         for (uint32_t bit = 0; bit < 24; bit++) {
             uint32_t bit_is_set = bits_to_send & mask;
