@@ -1,0 +1,52 @@
+#pragma once
+
+#include <flash_algo.hpp>
+#include <led_ctrl.hpp>
+#include <esp_err.h>
+#include "swd_prog.hpp"
+
+namespace flasher
+{
+    enum pg_state
+    {
+        DETECT = 0,
+        ERASE = 1,
+        PROGRAM = 2,
+        ERROR = 3,
+        VERIFY = 4,
+        DONE = 5,
+    };
+}
+
+class swd_headless_flasher
+{
+public:
+    static swd_headless_flasher& instance()
+    {
+        static swd_headless_flasher instance;
+        return instance;
+    }
+
+    swd_headless_flasher(swd_headless_flasher const &) = delete;
+    void operator=(swd_headless_flasher const &) = delete;
+
+private:
+    swd_headless_flasher() = default;
+    flash_algo algo = {};
+    led_ctrl &led = led_ctrl::instance();
+    swd_prog &swd = swd_prog::instance();
+    flasher::pg_state state = flasher::DETECT;
+
+    static const constexpr char *TAG = "swd_hdls_flr";
+
+public:
+    esp_err_t init();
+
+private:
+    void on_detect();
+    void on_error();
+    void on_erase();
+    void on_program();
+    void on_done();
+};
+

@@ -82,3 +82,5 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
+# Some sensitive stuff
+main/fs_sample/*.bin
