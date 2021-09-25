@@ -5,7 +5,9 @@ idf_component_register(
             "prog/flash_algo.cpp" "prog/includes/flash_algo.hpp"
             "prog/manifest_mgr.cpp" "prog/includes/manifest_mgr.hpp"
             "driver/swd_driver.cpp" "driver/includes/swd_driver.hpp"
+            "prog/swd_headless_flasher.cpp" "prog/includes/swd_headless_flasher.hpp"
             "external/includes/ArduinoJson.hpp" "prog/includes/led_ctrl.hpp"
+            "misc/includes/file_utils.hpp"
         INCLUDE_DIRS
             "." "misc/includes" "prog/includes" "driver/includes" "external/includes"
         PRIV_REQUIRES
