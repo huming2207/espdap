@@ -187,11 +187,12 @@ esp_err_t swd_prog::init(flash_algo *_algo, uint32_t _ram_addr, uint32_t _stack_
     return ESP_OK;
 }
 
-esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t sector_size, uint32_t end_addr)
+esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t end_addr)
 {
-    uint32_t sector_cnt = (end_addr - start_addr) / sector_size;
-    ESP_LOGI(TAG, "End addr 0x%x, start addr 0x%x, sector size %u", end_addr, start_addr, sector_size);
-    if ((end_addr - start_addr) % sector_size != 0 || sector_cnt < 1) {
+    auto flash_sector_size = algo->get_sector_size();
+    uint32_t sector_cnt = (end_addr - start_addr) / flash_sector_size;
+    ESP_LOGI(TAG, "End addr 0x%x, start addr 0x%x, sector size %u", end_addr, start_addr, flash_sector_size);
+    if ((end_addr - start_addr) % flash_sector_size != 0 || sector_cnt < 1) {
         ESP_LOGE(TAG, "Misaligned sector address");
         return ESP_ERR_INVALID_ARG;
     }
@@ -212,7 +213,6 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t sector_size, uint
 
     auto pc_erase_sector = algo->get_pc_erase_sector();
     auto flash_start_addr = algo->get_flash_start_addr();
-    auto flash_sector_size = algo->get_sector_size();
 
     swd_ret = swd_wait_until_halted();
     if (swd_ret < 1) {
@@ -229,8 +229,6 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t sector_size, uint
                 0, 0, 0, // r1, r2 = ignored
                 FLASHALGO_RETURN_BOOL
         );
-
-//        ESP_LOGW(TAG, "Erased at 0x%x, idx: %u of %u", 0x08000000 + (idx * sector_size), idx, sector_cnt -1);
 
         if (swd_ret < 1) {
             ESP_LOGE(TAG, "Erase function returned an unknown error");
