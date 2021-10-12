@@ -5,7 +5,7 @@ void state_character_cb::onRead(NimBLECharacteristic *pCharacteristic)
     NimBLECharacteristicCallbacks::onRead(pCharacteristic);
 }
 
-void state_character_cb::onWrite(NimBLECharacteristic *pCharacteristic)
+void state_character_cb::on_merged_packet()
 {
-    NimBLECharacteristicCallbacks::onWrite(pCharacteristic);
+
 }
