@@ -1,5 +1,9 @@
 #include <esp_log.h>
 #include <NimBLEDevice.h>
+#include <manifest_character_cb.hpp>
+#include <firmware_character_cb.hpp>
+#include <flash_algo_character_cb.hpp>
+#include <state_character_cb.hpp>
 #include "ble_serv_mgr.hpp"
 
 esp_err_t ble_serv_mgr::init()
@@ -22,24 +26,28 @@ esp_err_t ble_serv_mgr::init()
         ESP_LOGE(TAG, "Failed to init manifest characteristic");
         return ESP_ERR_NO_MEM;
     }
+    manifest_char->setCallbacks(new manifest_character_cb());
 
     firmware_char = soul_service->createCharacteristic(FIRMWARE_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC);
     if (firmware_char == nullptr) {
         ESP_LOGE(TAG, "Failed to init firmware characteristic");
         return ESP_ERR_NO_MEM;
     }
+    firmware_char->setCallbacks(new firmware_character_cb());
 
     flash_algo_char = soul_service->createCharacteristic(FLASH_ALGO_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC);
     if (flash_algo_char == nullptr) {
         ESP_LOGE(TAG, "Failed to init flash algo characteristic");
         return ESP_ERR_NO_MEM;
     }
+    flash_algo_char->setCallbacks(new flash_algo_character_cb());
 
     state_ctrl_char = soul_service->createCharacteristic(STATE_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC);
     if (state_ctrl_char == nullptr) {
         ESP_LOGE(TAG, "Failed to init state ctrl characteristic");
         return ESP_ERR_NO_MEM;
     }
+    state_ctrl_char->setCallbacks(new state_character_cb());
 
     if (!soul_service->start()) {
         ESP_LOGE(TAG, "Failed to start SoulInjector service");
