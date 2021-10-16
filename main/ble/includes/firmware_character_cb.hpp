@@ -1,9 +1,9 @@
 #pragma once
 
 #include <NimBLEDevice.h>
-#include "merged_characteristic.hpp"
+#include "chunked_characteristic.hpp"
 
-class firmware_character_cb : public merged_characteristic
+class firmware_character_cb : public chunked_characteristic
 {
 public:
     void onRead(NimBLECharacteristic* pCharacteristic) override;
