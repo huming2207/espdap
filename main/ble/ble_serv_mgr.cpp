@@ -21,28 +21,28 @@ esp_err_t ble_serv_mgr::init()
         return ESP_ERR_NO_MEM;
     }
 
-    manifest_char = soul_service->createCharacteristic(MANIFEST_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC);
+    manifest_char = soul_service->createCharacteristic(MANIFEST_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC | NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::INDICATE);
     if (manifest_char == nullptr) {
         ESP_LOGE(TAG, "Failed to init manifest characteristic");
         return ESP_ERR_NO_MEM;
     }
     manifest_char->setCallbacks(new manifest_character_cb());
 
-    firmware_char = soul_service->createCharacteristic(FIRMWARE_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC);
+    firmware_char = soul_service->createCharacteristic(FIRMWARE_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC | NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::INDICATE);
     if (firmware_char == nullptr) {
         ESP_LOGE(TAG, "Failed to init firmware characteristic");
         return ESP_ERR_NO_MEM;
     }
     firmware_char->setCallbacks(new firmware_character_cb());
 
-    flash_algo_char = soul_service->createCharacteristic(FLASH_ALGO_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC);
+    flash_algo_char = soul_service->createCharacteristic(FLASH_ALGO_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC | NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::INDICATE);
     if (flash_algo_char == nullptr) {
         ESP_LOGE(TAG, "Failed to init flash algo characteristic");
         return ESP_ERR_NO_MEM;
     }
     flash_algo_char->setCallbacks(new flash_algo_character_cb());
 
-    state_ctrl_char = soul_service->createCharacteristic(STATE_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC);
+    state_ctrl_char = soul_service->createCharacteristic(STATE_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC | NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::INDICATE);
     if (state_ctrl_char == nullptr) {
         ESP_LOGE(TAG, "Failed to init state ctrl characteristic");
         return ESP_ERR_NO_MEM;
