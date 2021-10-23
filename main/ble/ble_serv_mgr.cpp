@@ -4,6 +4,7 @@
 #include <firmware_character_cb.hpp>
 #include <flash_algo_character_cb.hpp>
 #include <state_character_cb.hpp>
+#include <esp_flash.h>
 #include "ble_serv_mgr.hpp"
 
 esp_err_t ble_serv_mgr::init()

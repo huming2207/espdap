@@ -10,7 +10,7 @@ esp_err_t manifest_mgr::init()
     esp_vfs_spiffs_conf_t spiffs_config = {};
     spiffs_config.base_path = BASE_PATH;
     spiffs_config.format_if_mount_failed = false;
-    spiffs_config.max_files = 3;
+    spiffs_config.max_files = 10;
     spiffs_config.partition_label = nullptr;
 
     auto ret = esp_vfs_spiffs_register(&spiffs_config);
