@@ -9,7 +9,7 @@
 
 esp_err_t swd_headless_flasher::init()
 {
-    auto ret = led.init(GPIO_NUM_18);
+    auto ret = led.init(GPIO_NUM_48);
     led.set_color(60,0,0,30);
 
     ret = ret ?: manifest.init();

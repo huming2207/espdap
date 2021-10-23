@@ -12,6 +12,8 @@ idf_component_register(
             "ble/firmware_character_cb.cpp" "ble/includes/firmware_character_cb.hpp"
             "ble/state_character_cb.cpp" "ble/includes/state_character_cb.hpp"
             "ble/ble_serv_mgr.cpp" "ble/includes/ble_serv_mgr.hpp"
+            "ble/includes/chunked_characteristic.hpp"
+            "misc/includes/soul_nvs.hpp"
         INCLUDE_DIRS
             "." "misc/includes" "prog/includes" "external/includes" "ble/includes"
         PRIV_REQUIRES
