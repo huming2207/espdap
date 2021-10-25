@@ -1,5 +1,6 @@
 #include <cstring>
 #include <esp_log.h>
+#include <esp_crc.h>
 
 #include <mbedtls/base64.h>
 #include "firmware_manager.hpp"
@@ -200,17 +201,22 @@ esp_err_t firmware_manager::set_sector_size(uint32_t value)
     return nvs->set_item("flash_sector_sz", value);
 }
 
-esp_err_t firmware_manager::deserialize_cfg(const uint8_t *buf, size_t len)
+esp_err_t firmware_manager::save_cfg(const uint8_t *buf, size_t len)
 {
-    if (len < 64) {
+    if (len < sizeof(fw_def::flash_algo_cfg)) {
         ESP_LOGE(TAG, "Incoming data too short");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (buf == nullptr) {
+        ESP_LOGE(TAG, "Incoming buffer is null");
         return ESP_ERR_INVALID_ARG;
     }
 
     auto *algo_cfg = (fw_def::flash_algo_cfg *)buf;
 
     // Magic is "JHSI" (Jackson Hu's Soul Injector firmware programmer)
-    if (algo_cfg->magic != 0x4a485349) {
+    if (algo_cfg->magic != FW_MGR_MAGIC_NUMBER) {
         ESP_LOGE(TAG, "Invalid magic, expect 0x4a485349 got 0x%x", algo_cfg->magic);
         return ESP_ERR_INVALID_ARG;
     }
@@ -235,3 +241,111 @@ esp_err_t firmware_manager::deserialize_cfg(const uint8_t *buf, size_t len)
 
     return ret;
 }
+
+esp_err_t firmware_manager::read_cfg(uint8_t *out, size_t len) const
+{
+    if (len < sizeof(fw_def::flash_algo_cfg)) {
+        ESP_LOGE(TAG, "Incoming buffer too short");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (out == nullptr) {
+        ESP_LOGE(TAG, "Incoming buffer is null");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    auto *algo_cfg = (fw_def::flash_algo_cfg *)out;
+    algo_cfg->magic = FW_MGR_MAGIC_NUMBER;
+
+    auto ret = get_target_name(algo_cfg->description, 32);
+    ret = ret ?: get_algo_name(algo_cfg->name, 32);
+    ret = ret ?: get_pc_init(algo_cfg->pc_init);
+    ret = ret ?: get_pc_uninit(algo_cfg->pc_uninit);
+    ret = ret ?: get_pc_program_page(algo_cfg->pc_program_page);
+    ret = ret ?: get_pc_erase_sector(algo_cfg->pc_erase_sector);
+    ret = ret ?: get_pc_erase_all(algo_cfg->pc_erase_all);
+    ret = ret ?: get_data_section_offset(algo_cfg->data_section_offset);
+    ret = ret ?: get_flash_start_addr(algo_cfg->flash_start_addr);
+    ret = ret ?: get_flash_end_addr(algo_cfg->flash_end_addr);
+    ret = ret ?: get_page_size(algo_cfg->flash_page_size);
+    ret = ret ?: get_sector_size(algo_cfg->flash_sector_size);
+    ret = ret ?: get_program_page_timeout(algo_cfg->program_timeout);
+    ret = ret ?: get_erased_byte_val(algo_cfg->erased_byte);
+    ret = ret ?: get_erase_sector_timeout(algo_cfg->erase_timeout);
+    ret = ret ?: get_ram_size_byte(algo_cfg->ram_size);
+    ret = ret ?: get_flash_size_byte(algo_cfg->flash_size);
+
+    return ret;
+}
+
+esp_err_t firmware_manager::save_algo(const uint8_t *buf, size_t len)
+{
+    if (buf == nullptr) {
+        ESP_LOGE(TAG, "Incoming buffer is null");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (len < 4) {
+        ESP_LOGE(TAG, "Incoming buffer is too short");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    uint32_t expect_len = ((buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0]);
+    if (expect_len < len) {
+        ESP_LOGE(TAG, "Incoming buffer is too short");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    auto ret = set_algo_bin_len(expect_len);
+    ret = ret ?: set_algo_bin(buf + sizeof(uint32_t), expect_len);
+
+    return ret;
+}
+
+esp_err_t firmware_manager::read_algo_info(uint8_t *out, size_t len) const
+{
+    if (out == nullptr) {
+        ESP_LOGE(TAG, "Incoming buffer is null");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (len < sizeof(fw_def::algo_info)) {
+        ESP_LOGE(TAG, "Incoming buffer is too short");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    auto *info = (fw_def::algo_info *)out;
+    uint32_t algo_len = 0;
+    auto ret = get_algo_bin_len(algo_len);
+    if (ret != ESP_OK || algo_len < 1) {
+        info->algo_len = 0;
+        info->algo_crc = 0;
+        ESP_LOGW(TAG, "No algo stored");
+    } else {
+        info->algo_len = algo_len;
+        auto *algo_buf = (uint8_t *)malloc(algo_len);
+        if (algo_buf == nullptr) {
+            info->algo_len = 0;
+            info->algo_crc = 0;
+
+            ESP_LOGE(TAG, "Memory alloc %u bytes failed when reading algo", algo_len);
+            return ESP_ERR_NO_MEM;
+        }
+
+        ret = get_algo_bin(algo_buf, algo_len);
+        if (ret != ESP_OK) {
+            free(algo_buf);
+            info->algo_len = 0;
+            info->algo_crc = 0;
+
+            ESP_LOGE(TAG, "Get algo blob failed");
+            return ret;
+        } else {
+            info->algo_crc = esp_crc32_le(0, algo_buf, algo_len);
+            info->algo_len = algo_len;
+        }
+    }
+
+    return ret;
+}
+

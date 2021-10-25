@@ -6,6 +6,8 @@
 #include <soul_nvs.hpp>
 #include <driver/gpio.h>
 
+#define FW_MGR_MAGIC_NUMBER 0x4a485349
+
 namespace fw_def
 {
     struct __attribute__((packed)) flash_algo_cfg
@@ -28,6 +30,12 @@ namespace fw_def
         uint32_t flash_size;
         char name[32];
         char description[32];
+    };
+
+    struct __attribute__((packed)) algo_info
+    {
+        uint32_t algo_crc;
+        uint32_t algo_len;
     };
 }
 
@@ -76,7 +84,11 @@ public:
     esp_err_t set_erase_sector_timeout(uint32_t value);
     esp_err_t set_sector_size(uint32_t value);
 
-    esp_err_t deserialize_cfg(const uint8_t *buf, size_t len);
+    esp_err_t save_cfg(const uint8_t *buf, size_t len);
+    esp_err_t read_cfg(uint8_t *out, size_t len) const;
+
+    esp_err_t save_algo(const uint8_t *buf, size_t len);
+    esp_err_t read_algo_info(uint8_t *out, size_t len) const;
 
 private:
     static const constexpr char *TAG = "fw_mgr";
