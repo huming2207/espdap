@@ -5,8 +5,9 @@
 #include <mbedtls/base64.h>
 #include "firmware_manager.hpp"
 
-esp_err_t firmware_manager::init(const char *path)
+esp_err_t firmware_manager::init()
 {
+
 
     return ESP_OK;
 }
@@ -347,5 +348,46 @@ esp_err_t firmware_manager::read_algo_info(uint8_t *out, size_t len) const
     }
 
     return ret;
+}
+
+esp_err_t firmware_manager::load_default_cfg()
+{
+    fw_def::flash_algo_cfg cfg = {};
+
+    // Default setting is for
+    cfg.magic = FW_MGR_MAGIC_NUMBER;
+    cfg.pc_init = 1;
+    cfg.pc_uninit = 125;
+    cfg.pc_program_page = 305;
+    cfg.pc_erase_sector = 173;
+    cfg.pc_erase_all = 0;
+    cfg.data_section_offset = 512;
+    cfg.flash_start_addr = 134217728;
+    cfg.flash_end_addr = 134348800;
+    cfg.flash_page_size = 1024;
+    cfg.erased_byte = 0;
+    cfg.flash_sector_size = 128;
+    cfg.program_timeout = 500;
+    cfg.erase_timeout = 500;
+    cfg.ram_size = 20480;
+    cfg.flash_size = 131072;
+
+    return save_cfg((const uint8_t *)&cfg, sizeof(cfg));
+}
+
+bool firmware_manager::has_valid_cfg() const
+{
+    uint8_t has_valid_cfg = 0;
+    if (nvs->get_item("has_cfg", has_valid_cfg) != ESP_OK) {
+        return false;
+    }
+
+    return has_valid_cfg > 0;
+}
+
+esp_err_t firmware_manager::set_has_cfg_flag(bool has_cfg)
+{
+    uint8_t val = has_cfg ? 1 : 0;
+    return nvs->set_item("has_cfg", val);
 }
 

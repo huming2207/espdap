@@ -43,7 +43,7 @@ class firmware_manager
 {
 public:
     firmware_manager() = default;
-    esp_err_t init(const char *path);
+    esp_err_t init();
     esp_err_t get_algo_name(char *algo_name, size_t len) const;
     esp_err_t get_target_name(char *target_name, size_t len) const;
     esp_err_t get_algo_bin(uint8_t *algo, size_t len) const;
@@ -63,6 +63,7 @@ public:
     esp_err_t get_program_page_timeout(uint32_t &out) const;
     esp_err_t get_erase_sector_timeout(uint32_t &out) const;
     esp_err_t get_sector_size(uint32_t &out) const;
+    bool has_valid_cfg() const;
 
     esp_err_t set_algo_name(const char *algo_name);
     esp_err_t set_target_name(const char *target_name);
@@ -83,9 +84,11 @@ public:
     esp_err_t set_program_page_timeout(uint32_t value);
     esp_err_t set_erase_sector_timeout(uint32_t value);
     esp_err_t set_sector_size(uint32_t value);
+    esp_err_t set_has_cfg_flag(bool has_cfg);
 
     esp_err_t save_cfg(const uint8_t *buf, size_t len);
     esp_err_t read_cfg(uint8_t *out, size_t len) const;
+    esp_err_t load_default_cfg();
 
     esp_err_t save_algo(const uint8_t *buf, size_t len);
     esp_err_t read_algo_info(uint8_t *out, size_t len) const;
