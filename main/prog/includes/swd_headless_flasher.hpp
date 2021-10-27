@@ -1,6 +1,6 @@
 #pragma once
 
-#include <flash_algo.hpp>
+#include <firmware_manager.hpp>
 #include <led_ctrl.hpp>
 #include <manifest_mgr.hpp>
 #include <esp_err.h>
@@ -34,7 +34,7 @@ public:
 private:
     swd_headless_flasher() = default;
     uint32_t written_len = 0;
-    flash_algo algo = {};
+    firmware_manager fw_mgr = {};
     led_ctrl &led = led_ctrl::instance();
     swd_prog &swd = swd_prog::instance();
     manifest_mgr &manifest = manifest_mgr::instance();

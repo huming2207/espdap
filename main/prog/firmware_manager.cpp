@@ -2,7 +2,6 @@
 #include <esp_log.h>
 #include <esp_crc.h>
 
-#include <mbedtls/base64.h>
 #include "firmware_manager.hpp"
 
 esp_err_t firmware_manager::init()
@@ -238,7 +237,7 @@ esp_err_t firmware_manager::save_cfg(const uint8_t *buf, size_t len)
     ret = ret ?: set_ram_size_byte(algo_cfg->ram_size);
     ret = ret ?: set_flash_size_byte(algo_cfg->flash_size);
     ret = ret ?: set_algo_name(algo_cfg->name);
-    ret = ret ?: set_target_name(algo_cfg->description);
+    ret = ret ?: set_target_name(algo_cfg->target);
 
     return ret;
 }
@@ -258,7 +257,7 @@ esp_err_t firmware_manager::read_cfg(uint8_t *out, size_t len) const
     auto *algo_cfg = (fw_def::flash_algo_cfg *)out;
     algo_cfg->magic = FW_MGR_MAGIC_NUMBER;
 
-    auto ret = get_target_name(algo_cfg->description, 32);
+    auto ret = get_target_name(algo_cfg->target, 32);
     ret = ret ?: get_algo_name(algo_cfg->name, 32);
     ret = ret ?: get_pc_init(algo_cfg->pc_init);
     ret = ret ?: get_pc_uninit(algo_cfg->pc_uninit);
@@ -389,5 +388,15 @@ esp_err_t firmware_manager::set_has_cfg_flag(bool has_cfg)
 {
     uint8_t val = has_cfg ? 1 : 0;
     return nvs->set_item("has_cfg", val);
+}
+
+esp_err_t firmware_manager::set_fw_crc(uint32_t crc)
+{
+    return nvs->set_item("fw_crc", crc);
+}
+
+esp_err_t firmware_manager::get_fw_crc(uint32_t &out) const
+{
+    return nvs->get_item("fw_crc", out);
 }
 
