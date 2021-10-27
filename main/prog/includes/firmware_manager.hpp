@@ -29,7 +29,7 @@ namespace fw_def
         uint32_t ram_size;
         uint32_t flash_size;
         char name[32];
-        char description[32];
+        char target[32];
     };
 
     struct __attribute__((packed)) algo_info
@@ -63,6 +63,7 @@ public:
     esp_err_t get_program_page_timeout(uint32_t &out) const;
     esp_err_t get_erase_sector_timeout(uint32_t &out) const;
     esp_err_t get_sector_size(uint32_t &out) const;
+    esp_err_t get_fw_crc(uint32_t &out) const;
     bool has_valid_cfg() const;
 
     esp_err_t set_algo_name(const char *algo_name);
@@ -85,6 +86,7 @@ public:
     esp_err_t set_erase_sector_timeout(uint32_t value);
     esp_err_t set_sector_size(uint32_t value);
     esp_err_t set_has_cfg_flag(bool has_cfg);
+    esp_err_t set_fw_crc(uint32_t crc);
 
     esp_err_t save_cfg(const uint8_t *buf, size_t len);
     esp_err_t read_cfg(uint8_t *out, size_t len) const;
