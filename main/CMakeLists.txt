@@ -13,14 +13,16 @@ idf_component_register(
             "comm/ble/state_character_cb.cpp" "comm/ble/includes/state_character_cb.hpp"
             "comm/ble/ble_serv_mgr.cpp" "comm/ble/includes/ble_serv_mgr.hpp"
             "comm/ble/includes/chunked_characteristic.hpp"
+            "comm/usb/cdc_acm.cpp" "comm/usb/includes/cdc_acm.hpp"
             "misc/includes/soul_nvs.hpp"
         INCLUDE_DIRS
-            "." "misc/includes" "prog/includes" "external/includes" "comm/ble/includes"
+            "." "misc/includes" "prog/includes" "external/includes" "comm/ble/includes" "comm/usb/includes"
         PRIV_REQUIRES
             "daplink-esp"
             "mbedtls"
             "spiffs"
             "esp-nimble-cpp"
+            "tinyusb"
         EMBED_FILES
             "resources/stm32l0x1.bin"
 )
