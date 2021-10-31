@@ -44,7 +44,24 @@ esp_err_t swd_prog::load_flash_algorithm()
         return ESP_FAIL;
     }
 
-    ret = swd_write_memory(code_start + sizeof(header_blob), algo->get_algo_bin(), algo->get_algo_bin_len());
+    uint32_t algo_bin_len = 0;
+    if (fw_mgr->get_algo_bin_len(algo_bin_len) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read algo bin len");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT) < algo_bin_len) {
+        ESP_LOGE(TAG, "Flash algo is too huge");
+        return ESP_ERR_NO_MEM;
+    }
+
+    auto *algo_bin = static_cast<uint8_t *>(heap_caps_malloc(algo_bin_len, MALLOC_CAP_SPIRAM));
+    if (algo_bin == nullptr) {
+        ESP_LOGE(TAG, "Failed to allocate flash algo bin buffer");
+        return ESP_ERR_NO_MEM;
+    }
+
+    ret = swd_write_memory(code_start + sizeof(header_blob), algo_bin, algo_bin_len);
     if (ret < 1) {
         ESP_LOGE(TAG, "Failed when writing main flash algorithm");
         state = swd_def::UNKNOWN;
@@ -72,7 +89,17 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
             return ESP_ERR_INVALID_STATE;
         }
 
-        auto pc_init = algo->get_pc_init();
+        uint32_t pc_init = 0;
+        if (fw_mgr->get_pc_init(pc_init) != ESP_OK) {
+            ESP_LOGE(TAG, "Init func pointer config not found");
+            return ESP_ERR_INVALID_STATE;
+        }
+
+        uint32_t flash_start_addr = 0;
+        if (fw_mgr->get_flash_start_addr(flash_start_addr) != ESP_OK) {
+            ESP_LOGE(TAG, "Flash start addr config not found");
+            return ESP_ERR_INVALID_STATE;
+        }
 
         ret = swd_wait_until_halted();
         if (ret < 1) {
@@ -84,7 +111,7 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
         ret = swd_flash_syscall_exec(
                 &syscall,
                 func_offset + pc_init, // Init PC (usually) = 1, +0x20 for header (but somehow actually 0?)
-                algo->get_flash_start_addr(), // r0 = flash base addr
+                flash_start_addr, // r0 = flash base addr
                 0, // r1 = ignored
                 mode, 0, // r2 = mode, r3 ignored
                 FLASHALGO_RETURN_BOOL
@@ -92,7 +119,7 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
 
         if (ret < 1) {
             ESP_LOGW(TAG, "Failed when init algorith, retrying...");
-            init(algo, ram_addr, stack_size); // Re-init SWD as well (so that target will reset)
+            init(fw_mgr, ram_addr, stack_size); // Re-init SWD as well (so that target will reset)
             retry_cnt -= 1;
         } else {
             state = swd_def::FLASH_ALG_INITED;
@@ -113,7 +140,11 @@ esp_err_t swd_prog::run_algo_uninit(swd_def::init_mode mode)
         return ESP_ERR_INVALID_STATE;
     }
 
-    auto pc_init = algo->get_pc_uninit();
+    uint32_t pc_uninit = 0;
+    if (fw_mgr->get_pc_uninit(pc_uninit) != ESP_OK) {
+        ESP_LOGE(TAG, "UnInit func pointer config not found");
+        return ESP_ERR_INVALID_STATE;
+    }
 
     ret = swd_wait_until_halted();
     if (ret < 1) {
@@ -124,7 +155,7 @@ esp_err_t swd_prog::run_algo_uninit(swd_def::init_mode mode)
 
     ret = swd_flash_syscall_exec(
             &syscall,
-            func_offset + pc_init, // UnInit PC = 61
+            func_offset + pc_uninit, // UnInit PC = 61
             mode,
             0, 0, 0, // r2, r3 = ignored
             FLASHALGO_RETURN_BOOL
@@ -140,7 +171,7 @@ esp_err_t swd_prog::run_algo_uninit(swd_def::init_mode mode)
     return ESP_OK;
 }
 
-esp_err_t swd_prog::init(flash_algo *_algo, uint32_t _ram_addr, uint32_t _stack_size_byte)
+esp_err_t swd_prog::init(firmware_manager *_algo, uint32_t _ram_addr, uint32_t _stack_size_byte)
 {
     if (_algo == nullptr) {
         ESP_LOGE(TAG, "Flash algorithm container pointer is null");
@@ -152,7 +183,7 @@ esp_err_t swd_prog::init(flash_algo *_algo, uint32_t _ram_addr, uint32_t _stack_
         return ESP_ERR_INVALID_ARG;
     }
 
-    algo = _algo;
+    fw_mgr = _algo;
     ram_addr = _ram_addr;
     stack_size = _stack_size_byte;
 
@@ -190,7 +221,16 @@ esp_err_t swd_prog::init(flash_algo *_algo, uint32_t _ram_addr, uint32_t _stack_
 
 esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t end_addr)
 {
-    auto flash_sector_size = algo->get_sector_size();
+    uint32_t flash_sector_size = 0, pc_erase_sector = 0, flash_start_addr = 0;
+    auto nvs_ret = fw_mgr->get_sector_size(flash_sector_size);
+    nvs_ret = nvs_ret ?: fw_mgr->get_pc_erase_sector(pc_erase_sector);
+    nvs_ret = nvs_ret ?: fw_mgr->get_flash_start_addr(flash_start_addr);
+
+    if (nvs_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Missing config for EraseSector");
+        return ESP_ERR_INVALID_STATE;
+    }
+
     uint32_t sector_cnt = (end_addr - start_addr) / flash_sector_size;
     ESP_LOGI(TAG, "End addr 0x%x, start addr 0x%x, sector size %u", end_addr, start_addr, flash_sector_size);
     if ((end_addr - start_addr) % flash_sector_size != 0 || sector_cnt < 1) {
@@ -211,9 +251,6 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t end_addr)
         state = swd_def::UNKNOWN;
         return ESP_ERR_INVALID_STATE;
     }
-
-    auto pc_erase_sector = algo->get_pc_erase_sector();
-    auto flash_start_addr = algo->get_flash_start_addr();
 
     swd_ret = swd_wait_until_halted();
     if (swd_ret < 1) {
@@ -269,9 +306,15 @@ esp_err_t swd_prog::program_page(const uint8_t *buf, size_t len, uint32_t start_
         return ESP_ERR_INVALID_STATE;
     }
 
-    auto pc_program_page = algo->get_pc_program_page();
-    auto flash_start_addr = algo->get_flash_start_addr();
-    auto page_size = algo->get_page_size();
+    uint32_t page_size = 0, pc_program_page = 0, flash_start_addr = 0;
+    auto nvs_ret = fw_mgr->get_page_size(page_size);
+    nvs_ret = nvs_ret ?: fw_mgr->get_pc_program_page(pc_program_page);
+    nvs_ret = nvs_ret ?: fw_mgr->get_flash_start_addr(flash_start_addr);
+
+    if (nvs_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Missing config for ProgramPage");
+        return ESP_ERR_INVALID_STATE;
+    }
 
     swd_ret = swd_wait_until_halted();
     if (swd_ret < 1) {
@@ -363,9 +406,15 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t *len_written, uint32
         return ESP_ERR_INVALID_STATE;
     }
 
-    auto pc_program_page = algo->get_pc_program_page();
-    auto flash_start_addr = algo->get_flash_start_addr();
-    auto page_size = algo->get_page_size();
+    uint32_t page_size = 0, pc_program_page = 0, flash_start_addr = 0;
+    auto nvs_ret = fw_mgr->get_page_size(page_size);
+    nvs_ret = nvs_ret ?: fw_mgr->get_pc_program_page(pc_program_page);
+    nvs_ret = nvs_ret ?: fw_mgr->get_flash_start_addr(flash_start_addr);
+
+    if (nvs_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Missing config for ProgramPage");
+        return ESP_ERR_INVALID_STATE;
+    }
 
     swd_ret = swd_wait_until_halted();
     if (swd_ret < 1) {
@@ -440,8 +489,17 @@ esp_err_t swd_prog::verify(uint32_t expected_crc, uint32_t start_addr, size_t le
         return ESP_ERR_INVALID_STATE;
     }
 
-    uint32_t actual_read_addr = (start_addr == UINT32_MAX) ? algo->get_flash_start_addr() : start_addr;
-    uint32_t actual_len = (len == 0) ? (algo->get_flash_end_addr() - algo->get_flash_start_addr()) : len;
+    uint32_t flash_start_addr = 0, flash_end_addr = 0;
+    auto nvs_ret = fw_mgr->get_flash_end_addr(flash_end_addr);
+    nvs_ret = nvs_ret ?: fw_mgr->get_flash_start_addr(flash_start_addr);
+
+    if (nvs_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Missing config for verify");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    uint32_t actual_read_addr = (start_addr == UINT32_MAX) ? flash_start_addr : start_addr;
+    uint32_t actual_len = (len == 0) ? (flash_end_addr - flash_start_addr) : len;
     uint32_t actual_crc = 0;
     size_t remain_len = actual_len;
     uint32_t offset = 0;
