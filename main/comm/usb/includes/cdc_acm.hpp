@@ -75,7 +75,6 @@ public:
 
 private:
     cdc_acm() = default;
-    esp_err_t init();
     static void serial_rx_cb(int itf, cdcacm_event_t *event);
     [[noreturn]] static void rx_handler_task(void *ctx);
     static esp_err_t send_pkt(cdc_def::pkt_type type, const uint8_t *buf, size_t len, uint32_t timeout_ms = portMAX_DELAY);
@@ -83,6 +82,9 @@ private:
     static inline uint16_t get_crc16_ccitt(const uint8_t *buf, size_t len, uint16_t init = 0xffff);
 
 public:
+    esp_err_t init();
+
+private:
     void parse_pkt();
     void parse_get_config();
     void parse_set_config();
