@@ -3,7 +3,7 @@
 #include <esp_err.h>
 #include <swd_host.h>
 #include <led_ctrl.hpp>
-#include "flash_algo.hpp"
+#include "firmware_manager.hpp"
 
 namespace swd_def
 {
@@ -45,7 +45,7 @@ private:
     uint32_t func_offset = 0;
     uint32_t ram_addr = 0;
     uint32_t stack_size = 0;
-    flash_algo *algo = nullptr;
+    firmware_manager *fw_mgr = nullptr;
     led_ctrl &led = led_ctrl::instance();
 
     static const uint32_t header_blob[];
@@ -57,7 +57,7 @@ private:
     esp_err_t run_algo_uninit(swd_def::init_mode mode);
 
 public:
-    esp_err_t init(flash_algo *algo, uint32_t ram_addr = 0x20000000, uint32_t stack_size_byte = 0x200);
+    esp_err_t init(firmware_manager *algo, uint32_t ram_addr = 0x20000000, uint32_t stack_size_byte = 0x200);
     esp_err_t erase_sector(uint32_t start_addr, uint32_t end_addr);
     esp_err_t program_page(const uint8_t *buf, size_t len, uint32_t start_addr = UINT32_MAX);
     esp_err_t program_file(const char *path, uint32_t *len_written = nullptr, uint32_t start_addr = UINT32_MAX);
