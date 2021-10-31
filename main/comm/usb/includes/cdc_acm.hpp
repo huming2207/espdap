@@ -7,7 +7,6 @@
 #include <tusb_cdc_acm.h>
 #include <esp_err.h>
 
-#define CDC_ACM_DECODED_BUF_LEN     512
 #define SLIP_END            0xc0
 #define SLIP_ESC            0xdb
 #define SLIP_ESC_END        0xdc
@@ -25,18 +24,20 @@ namespace cdc_def
 {
     enum event : uint32_t {
         EVT_NEW_PACKET = BIT(0),
-        EVT_SLIP_ERROR = BIT(1),
+        EVT_READING_PKT = BIT(1),
+        EVT_SLIP_ERROR = BIT(2),
     };
 
     enum pkt_type : uint8_t {
         PKT_ACK = 0,
         PKT_DEVICE_INFO = 1,
-        PKT_READ_CONFIG = 2,
-        PKT_WRITE_CONFIG = 3,
-        PKT_SET_ALGO_BIN = 4,
-        PKT_GET_ALGO_INFO = 5,
-        PKT_SET_FW_BIN = 6,
-        PKT_SET_FW_INFO = 7,
+        PKT_GET_CONFIG = 2,
+        PKT_SET_CONFIG = 3,
+        PKT_GET_ALGO_INFO = 4,
+        PKT_SET_ALGO_BIN = 5,
+        PKT_GET_FW_INFO = 6,
+        PKT_SET_FW_BIN = 7,
+        PKT_NACK = 0xff,
     };
 
     struct __attribute__((packed)) header {
@@ -82,7 +83,17 @@ private:
     static inline uint16_t get_crc16_ccitt(const uint8_t *buf, size_t len, uint16_t init = 0xffff);
 
 public:
+    void parse_pkt();
+    void parse_get_config();
+    void parse_set_config();
+    void parse_get_algo_info();
+    void parse_set_algo_bin();
+    void parse_get_fw_info();
+    void parse_set_fw_bin();
+
+public:
     static esp_err_t send_ack(uint16_t crc = 0, uint32_t timeout_ms = portMAX_DELAY);
+    static esp_err_t send_nack(uint32_t timeout_ms = portMAX_DELAY);
     static esp_err_t send_dev_info(uint32_t timeout_ms = portMAX_DELAY);
 
 private:

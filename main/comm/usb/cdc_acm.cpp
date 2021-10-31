@@ -32,7 +32,7 @@ esp_err_t cdc_acm::init()
         return ESP_ERR_NO_MEM;
     }
 
-    decoded_buf = static_cast<uint8_t *>(heap_caps_malloc(CDC_ACM_DECODED_BUF_LEN, MALLOC_CAP_SPIRAM));
+    decoded_buf = static_cast<uint8_t *>(heap_caps_malloc(CONFIG_TINYUSB_CDC_RX_BUFSIZE, MALLOC_CAP_SPIRAM));
     if (decoded_buf == nullptr) {
         ESP_LOGE(TAG, "Failed to allocate SLIP decode buf");
         return ESP_ERR_NO_MEM;
@@ -56,7 +56,7 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
     if (rx_size < 1) return;
 
     size_t idx = 0;
-    while (idx < rx_size && ctx.curr_rx_len < CDC_ACM_DECODED_BUF_LEN) {
+    while (idx < rx_size && ctx.curr_rx_len < CONFIG_TINYUSB_CDC_RX_BUFSIZE) {
         if (rx_buf[idx] == SLIP_END) {
             if (ctx.curr_rx_len > 0) {
                 xEventGroupSetBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET);
@@ -87,10 +87,19 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
     auto &ctx = cdc_acm::instance();
     while(true) {
         if (xEventGroupWaitBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET, pdTRUE, pdFALSE, portMAX_DELAY) == pdTRUE) {
+            // Pause Rx
+            tinyusb_cdcacm_unregister_callback(TINYUSB_CDC_ACM_0, CDC_EVENT_RX);
 
+            // Now do parsing
+            ctx.parse_pkt();
+
+            // Clear up the mess
+            ctx.curr_rx_len = 0;
+            memset(ctx.decoded_buf, 0, CONFIG_TINYUSB_CDC_RX_BUFSIZE);
+
+            // Restart Rx
+            tinyusb_cdcacm_register_callback(TINYUSB_CDC_ACM_0, CDC_EVENT_RX, serial_rx_cb);
         }
-
-
     }
 }
 
@@ -104,6 +113,22 @@ esp_err_t cdc_acm::send_ack(uint16_t crc, uint32_t timeout_ms)
     auto sent_len = tinyusb_cdcacm_write_queue(TINYUSB_CDC_ACM_0, (uint8_t *)&ack, sizeof(cdc_def::ack_pkt));
     if (sent_len < sizeof(cdc_def::ack_pkt)) {
         ESP_LOGE(TAG, "Failed to send ACK");
+        return ESP_FAIL;
+    } else {
+        return tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, pdMS_TO_TICKS(timeout_ms));
+    }
+}
+
+esp_err_t cdc_acm::send_nack(uint32_t timeout_ms)
+{
+    cdc_def::ack_pkt nack = {};
+    nack.crc = 0;
+    nack.type = cdc_def::PKT_NACK;
+    nack.len = 0;
+
+    auto sent_len = tinyusb_cdcacm_write_queue(TINYUSB_CDC_ACM_0, (uint8_t *)&nack, sizeof(cdc_def::ack_pkt));
+    if (sent_len < sizeof(cdc_def::ack_pkt)) {
+        ESP_LOGE(TAG, "Failed to send NACK");
         return ESP_FAIL;
     } else {
         return tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, pdMS_TO_TICKS(timeout_ms));
@@ -227,4 +252,89 @@ uint16_t cdc_acm::get_crc16_ccitt(const uint8_t *buf, size_t len, uint16_t init)
 
     return ~esp_crc16_le(init, buf, len);
 }
+
+void cdc_acm::parse_pkt()
+{
+    if (curr_rx_len < 1) return;
+    auto *header = (cdc_def::header *)decoded_buf;
+    uint16_t expected_crc = header->crc;
+    header->crc = 0;
+
+    uint16_t actual_crc = get_crc16_ccitt(decoded_buf, curr_rx_len);
+    if (actual_crc != expected_crc) {
+        ESP_LOGW(TAG, "Incoming packet CRC corrupted, expect 0x%x, actual 0x%x", expected_crc, actual_crc);
+        send_nack();
+        return;
+    }
+
+    switch (header->type) {
+        case cdc_def::PKT_GET_CONFIG: {
+            parse_get_config();
+            break;
+        }
+
+        case cdc_def::PKT_SET_CONFIG: {
+            parse_set_config();
+            break;
+        }
+
+        case cdc_def::PKT_SET_ALGO_BIN: {
+            parse_set_algo_bin();
+            break;
+        }
+
+        case cdc_def::PKT_GET_ALGO_INFO: {
+            parse_get_algo_info();
+            break;
+        }
+
+        case cdc_def::PKT_SET_FW_BIN: {
+            parse_set_fw_bin();
+            break;
+        }
+
+        case cdc_def::PKT_GET_FW_INFO:{
+            parse_get_fw_info();
+            break;
+        }
+
+        default: {
+            ESP_LOGW(TAG, "Unknown packet type 0x%x received", header->type);
+            send_nack();
+            break;
+        }
+    }
+}
+
+void cdc_acm::parse_get_config()
+{
+
+}
+
+void cdc_acm::parse_set_config()
+{
+
+}
+
+void cdc_acm::parse_get_algo_info()
+{
+
+}
+
+void cdc_acm::parse_set_algo_bin()
+{
+
+}
+
+void cdc_acm::parse_get_fw_info()
+{
+
+}
+
+void cdc_acm::parse_set_fw_bin()
+{
+
+}
+
+
 
