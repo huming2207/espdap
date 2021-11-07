@@ -81,6 +81,9 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
         return;
     }
 
+    ESP_LOGI(TAG, "Before SLIP:");
+    ESP_LOG_BUFFER_HEX(TAG, rx_buf, rx_size);
+
     if (rx_size < 1) return;
 
     size_t idx = 0;
@@ -102,11 +105,14 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
                 ESP_LOGE(TAG, "SLIP decoding detected a corrupted packet");
                 return;
             }
+
+            ctx.curr_rx_len += 1;
         } else {
             ctx.decoded_buf[ctx.curr_rx_len] = rx_buf[idx];
+            ctx.curr_rx_len += 1;
         }
 
-        ctx.curr_rx_len += 1;
+        idx += 1;
     }
 }
 
@@ -137,18 +143,7 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
 
 esp_err_t cdc_acm::send_ack(uint16_t crc, uint32_t timeout_ms)
 {
-    cdc_def::ack_pkt ack = {};
-    ack.crc = crc;
-    ack.type = cdc_def::PKT_ACK;
-    ack.len = 0;
-
-    auto sent_len = tinyusb_cdcacm_write_queue(TINYUSB_CDC_ACM_0, (uint8_t *)&ack, sizeof(cdc_def::ack_pkt));
-    if (sent_len < sizeof(cdc_def::ack_pkt)) {
-        ESP_LOGE(TAG, "Failed to send ACK");
-        return ESP_FAIL;
-    } else {
-        return tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, pdMS_TO_TICKS(timeout_ms));
-    }
+    return send_pkt(cdc_def::PKT_ACK, nullptr, 0);
 }
 
 esp_err_t cdc_acm::send_nack(uint32_t timeout_ms)
