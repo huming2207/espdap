@@ -58,6 +58,8 @@ esp_err_t cdc_acm::init()
         return ESP_ERR_NO_MEM;
     }
 
+    xTaskCreate(rx_handler_task, "cdc_rx", 8192, this, tskIDLE_PRIORITY + 1, nullptr);
+
     decoded_buf = static_cast<uint8_t *>(heap_caps_malloc(CONFIG_TINYUSB_CDC_RX_BUFSIZE, MALLOC_CAP_SPIRAM));
     if (decoded_buf == nullptr) {
         ESP_LOGE(TAG, "Failed to allocate SLIP decode buf");
@@ -110,11 +112,15 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
 
 [[noreturn]] void cdc_acm::rx_handler_task(void *_ctx)
 {
+    ESP_LOGI(TAG, "Rx handler task started");
     auto &ctx = cdc_acm::instance();
     while(true) {
         if (xEventGroupWaitBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET, pdTRUE, pdFALSE, portMAX_DELAY) == pdTRUE) {
             // Pause Rx
             tinyusb_cdcacm_unregister_callback(TINYUSB_CDC_ACM_0, CDC_EVENT_RX);
+
+            ESP_LOGI(TAG, "Now in buffer:");
+            ESP_LOG_BUFFER_HEX(TAG, ctx.decoded_buf, ctx.curr_rx_len);
 
             // Now do parsing
             ctx.parse_pkt();
@@ -147,18 +153,7 @@ esp_err_t cdc_acm::send_ack(uint16_t crc, uint32_t timeout_ms)
 
 esp_err_t cdc_acm::send_nack(uint32_t timeout_ms)
 {
-    cdc_def::ack_pkt nack = {};
-    nack.crc = 0;
-    nack.type = cdc_def::PKT_NACK;
-    nack.len = 0;
-
-    auto sent_len = tinyusb_cdcacm_write_queue(TINYUSB_CDC_ACM_0, (uint8_t *)&nack, sizeof(cdc_def::ack_pkt));
-    if (sent_len < sizeof(cdc_def::ack_pkt)) {
-        ESP_LOGE(TAG, "Failed to send NACK");
-        return ESP_FAIL;
-    } else {
-        return tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, pdMS_TO_TICKS(timeout_ms));
-    }
+    return send_pkt(cdc_def::PKT_NACK, nullptr, 0);
 }
 
 esp_err_t cdc_acm::send_dev_info(uint32_t timeout_ms)
@@ -193,16 +188,19 @@ esp_err_t cdc_acm::send_pkt(cdc_def::pkt_type type, const uint8_t *buf, size_t l
     if (buf == nullptr || len < 1) {
         header.crc = crc;
         return encode_and_tx((uint8_t *)&header, sizeof(header), nullptr, 0, timeout_ms);
+    } else {
+        crc = get_crc16_ccitt(buf, len, crc);
+        header.crc = crc;
+        return encode_and_tx((uint8_t *)&header, sizeof(header), buf, len, timeout_ms);
     }
-
-    crc = get_crc16_ccitt(buf, len, crc);
-    header.crc = crc;
-    return encode_and_tx((uint8_t *)&header, sizeof(header), buf, len, timeout_ms);
 }
 
 esp_err_t cdc_acm::encode_and_tx(const uint8_t *header_buf, size_t header_len,
                                  const uint8_t *buf, size_t len, uint32_t timeout_ms)
 {
+    const uint8_t slip_esc_end[] = { SLIP_ESC, SLIP_ESC_END };
+    const uint8_t slip_esc_esc[] = { SLIP_ESC, SLIP_ESC_ESC };
+
     if (header_buf == nullptr || header_len < 1) {
         return ESP_ERR_INVALID_ARG;
     }
@@ -236,7 +234,7 @@ esp_err_t cdc_acm::encode_and_tx(const uint8_t *header_buf, size_t header_len,
         header_idx += 1;
     }
 
-    if (buf == nullptr || len < 1) {
+    if (buf != nullptr && len > 1) {
         size_t payload_idx = 0;
         while (payload_idx < len) {
             if (buf[payload_idx] == SLIP_END) {
@@ -284,12 +282,6 @@ void cdc_acm::parse_pkt()
     if (curr_rx_len < 1) return;
     auto *header = (cdc_def::header *)decoded_buf;
 
-    // To save some time, we don't verify CRC for PING packet.
-    if (header->type == cdc_def::PKT_PING) {
-        send_ack();
-        return;
-    }
-
     uint16_t expected_crc = header->crc;
     header->crc = 0;
 
@@ -301,6 +293,11 @@ void cdc_acm::parse_pkt()
     }
 
     switch (header->type) {
+        case cdc_def::PKT_PING: {
+            send_ack();
+            break;
+        }
+
         case cdc_def::PKT_GET_CONFIG: {
             parse_get_config();
             break;
