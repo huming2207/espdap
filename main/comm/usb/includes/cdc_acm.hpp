@@ -37,6 +37,7 @@ namespace cdc_def
         PKT_SET_ALGO_BIN = 5,
         PKT_GET_FW_INFO = 6,
         PKT_SET_FW_BIN = 7,
+        PKT_PING = 8,
         PKT_NACK = 0xff,
     };
 

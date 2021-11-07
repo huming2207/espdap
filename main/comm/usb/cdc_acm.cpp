@@ -8,7 +8,33 @@
 
 esp_err_t cdc_acm::init()
 {
+    static char sn_str[32] = {};
+    static const char lang[2] = {0x09, 0x04};
+    static tusb_desc_strarray_device_t desc_str = {
+            // array of pointer to string descriptors
+            lang,                // 0: is supported language is English (0x0409)
+            "Jackson Hu", // 1: Manufacturer
+            "Soul Injector Programmer",      // 2: Product
+            sn_str,       // 3: Serials, should use chip ID
+            "Soul Injector Programmer",          // 4: CDC Interface
+            "",
+            "",
+    };
+    static tusb_desc_device_t desc_device = {};
+
     tinyusb_config_t tusb_cfg = {}; // the configuration using default values
+    tusb_cfg.string_descriptor = desc_str;
+
+    uint8_t sn_buf[16] = { 0 };
+    esp_efuse_mac_get_default(sn_buf);
+    esp_flash_read_unique_chip_id(esp_flash_default_chip, reinterpret_cast<uint64_t *>(sn_buf + 6));
+
+    snprintf(sn_str, 32, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+             sn_buf[0], sn_buf[1], sn_buf[2], sn_buf[3], sn_buf[4], sn_buf[5], sn_buf[6], sn_buf[7],
+             sn_buf[8], sn_buf[9], sn_buf[10], sn_buf[11], sn_buf[12], sn_buf[13]);
+
+    ESP_LOGI(TAG, "Initialised with SN: %s", sn_str);
+
     auto ret = tinyusb_driver_install(&tusb_cfg);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "TinyUSB driver install failed");
@@ -257,6 +283,13 @@ void cdc_acm::parse_pkt()
 {
     if (curr_rx_len < 1) return;
     auto *header = (cdc_def::header *)decoded_buf;
+
+    // To save some time, we don't verify CRC for PING packet.
+    if (header->type == cdc_def::PKT_PING) {
+        send_ack();
+        return;
+    }
+
     uint16_t expected_crc = header->crc;
     header->crc = 0;
 
