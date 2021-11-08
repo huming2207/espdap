@@ -101,8 +101,6 @@ public:
 
 private:
     static const constexpr char *TAG = "cdc_acm";
-    static const constexpr uint8_t slip_esc_end[] = { SLIP_ESC, SLIP_ESC_END };
-    static const constexpr uint8_t slip_esc_esc[] = { SLIP_ESC, SLIP_ESC_ESC };
     EventGroupHandle_t rx_event = nullptr;
     volatile bool busy_decoding = false;
     volatile size_t curr_rx_len = 0;

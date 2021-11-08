@@ -293,6 +293,11 @@ void cdc_acm::parse_pkt()
             break;
         }
 
+        case cdc_def::PKT_DEVICE_INFO: {
+            send_dev_info();
+            break;
+        }
+
         case cdc_def::PKT_GET_CONFIG: {
             parse_get_config();
             break;
