@@ -263,13 +263,13 @@ esp_err_t cdc_acm::encode_and_tx(const uint8_t *header_buf, size_t header_len,
 
 uint16_t cdc_acm::get_crc16_ccitt(const uint8_t *buf, size_t len, uint16_t init)
 {
-    //  * CRC-16/CCITT, poly = 0x1021, init = 0x0000, refin = true, refout = true, xorout = 0x0000
-    // *     crc = ~crc16_le((uint16_t)~0x0000, buf, length);
+//  * CRC-16/XMODEM, poly= 0x1021, init = 0x0000, refin = false, refout = false, xorout = 0x0000
+// *     crc = ~crc16_be((uint16_t)~0x0000, buf, length);
     if (buf == nullptr || len < 1) {
         return 0;
     }
 
-    return ~esp_crc16_le(init, buf, len);
+    return ~esp_crc16_be((uint16_t)~init, buf, len);
 }
 
 void cdc_acm::parse_pkt()
