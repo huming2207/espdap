@@ -80,7 +80,7 @@ private:
     [[noreturn]] static void rx_handler_task(void *ctx);
     static esp_err_t send_pkt(cdc_def::pkt_type type, const uint8_t *buf, size_t len, uint32_t timeout_ms = portMAX_DELAY);
     static esp_err_t encode_and_tx(const uint8_t *header_buf, size_t header_len, const uint8_t *buf, size_t len, uint32_t timeout_ms = portMAX_DELAY);
-    static inline uint16_t get_crc16_ccitt(const uint8_t *buf, size_t len, uint16_t init = 0x0000);
+    static inline uint16_t get_crc16(const uint8_t *buf, size_t len, uint16_t init = 0x0000);
 
 public:
     esp_err_t init();
