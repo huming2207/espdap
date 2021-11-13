@@ -169,6 +169,15 @@ esp_err_t cdc_acm::send_dev_info(uint32_t timeout_ms)
     return ret;
 }
 
+esp_err_t cdc_acm::send_chunk_ack(cdc_def::chunk_ack state, uint32_t aux, uint32_t timeout_ms)
+{
+    cdc_def::chunk_ack_pkt pkt = {};
+    pkt.aux_info = aux;
+    pkt.state = state;
+
+    return send_pkt(cdc_def::PKT_CHUNK_ACK, (uint8_t *)&pkt, sizeof(pkt), timeout_ms);
+}
+
 esp_err_t cdc_acm::send_pkt(cdc_def::pkt_type type, const uint8_t *buf, size_t len, uint32_t timeout_ms)
 {
     if (buf == nullptr && len > 0) return ESP_ERR_INVALID_ARG;
@@ -365,6 +374,12 @@ void cdc_acm::parse_set_fw_bin()
 {
 
 }
+
+void cdc_acm::parse_chunk()
+{
+
+}
+
 
 
 
