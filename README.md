@@ -10,8 +10,8 @@ Tested on ESP32-S2 only but it should work on ESP32-S3.
 - [x] Offline firmware flashing
 - [x] More tests
 - [x] Read verification
-- [-] Desktop app (Tauri + Rust + React web stuff)
-- [-] USB CDC-ACM communication
+- [ ] Desktop app (Tauri + Rust + React web stuff)  **<- working on it**
+- [ ] USB CDC-ACM communication **<- working on it**
 - [ ] SWD on SPI Master, instead of bit-banging
 - [ ] ESP32-to-ESP32 firmware downloading 
 
