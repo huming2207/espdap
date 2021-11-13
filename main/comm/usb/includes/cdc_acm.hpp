@@ -13,7 +13,7 @@
 #define SLIP_ESC_ESC        0xdd
 
 #ifndef SI_DEVICE_MODEL
-#define SI_DEVICE_MODEL "SI R&D"
+#define SI_DEVICE_MODEL "Soul Injector ENG SAMPLE FOR SG"
 #endif
 
 #ifndef SI_DEVICE_BUILD
@@ -38,7 +38,27 @@ namespace cdc_def
         PKT_GET_FW_INFO = 6,
         PKT_SET_FW_BIN = 7,
         PKT_PING = 8,
+        PKT_SEND_CHUNK = 9,
+        PKT_CHUNK_ACK = 10,
         PKT_NACK = 0xff,
+    };
+
+    enum chunk_ack : uint8_t {
+        CHUNK_XFER_DONE = 0,
+        CHUNK_XFER_NEXT = 1,
+        CHUNK_ERR_CRC32_FAIL = 2,
+        CHUNK_ERR_LEN_OVERFLOW = 3,
+    };
+
+    struct __attribute__((packed)) chunk_ack_pkt {
+        chunk_ack state;
+
+        // Can be:
+        // 1. Next chunk index (when state == 1)
+        // 2. Expected CRC32 (when state == 2)
+        // 3. Max length allowed (when state == 3)
+        // 4. Just 0 (when state == anything else?)
+        uint32_t aux_info;
     };
 
     struct __attribute__((packed)) header {
@@ -93,11 +113,13 @@ private:
     void parse_set_algo_bin();
     void parse_get_fw_info();
     void parse_set_fw_bin();
+    void parse_chunk();
 
 public:
     static esp_err_t send_ack(uint16_t crc = 0, uint32_t timeout_ms = portMAX_DELAY);
     static esp_err_t send_nack(uint32_t timeout_ms = portMAX_DELAY);
     static esp_err_t send_dev_info(uint32_t timeout_ms = portMAX_DELAY);
+    static esp_err_t send_chunk_ack(cdc_def::chunk_ack state, uint32_t aux = 0, uint32_t timeout_ms = portMAX_DELAY);
 
 private:
     static const constexpr char *TAG = "cdc_acm";
