@@ -257,23 +257,59 @@ esp_err_t firmware_manager::read_cfg(uint8_t *out, size_t len) const
     auto *algo_cfg = (fw_def::flash_algo_cfg *)out;
     algo_cfg->magic = FW_MGR_MAGIC_NUMBER;
 
-    auto ret = get_target_name(algo_cfg->target, 32);
-    ret = ret ?: get_algo_name(algo_cfg->name, 32);
-    ret = ret ?: get_pc_init(algo_cfg->pc_init);
-    ret = ret ?: get_pc_uninit(algo_cfg->pc_uninit);
-    ret = ret ?: get_pc_program_page(algo_cfg->pc_program_page);
-    ret = ret ?: get_pc_erase_sector(algo_cfg->pc_erase_sector);
-    ret = ret ?: get_pc_erase_all(algo_cfg->pc_erase_all);
-    ret = ret ?: get_data_section_offset(algo_cfg->data_section_offset);
-    ret = ret ?: get_flash_start_addr(algo_cfg->flash_start_addr);
-    ret = ret ?: get_flash_end_addr(algo_cfg->flash_end_addr);
-    ret = ret ?: get_page_size(algo_cfg->flash_page_size);
-    ret = ret ?: get_sector_size(algo_cfg->flash_sector_size);
-    ret = ret ?: get_program_page_timeout(algo_cfg->program_timeout);
-    ret = ret ?: get_erased_byte_val(algo_cfg->erased_byte);
-    ret = ret ?: get_erase_sector_timeout(algo_cfg->erase_timeout);
-    ret = ret ?: get_ram_size_byte(algo_cfg->ram_size);
-    ret = ret ?: get_flash_size_byte(algo_cfg->flash_size);
+    char target[32] = { 0 };
+    auto ret = get_target_name(target, 32);
+    memcpy(algo_cfg->target, target, 32);
+
+    char name[32] = { 0 };
+    ret = ret ?: get_algo_name(name, 32);
+    memcpy(algo_cfg->name, name, 32);
+
+    uint32_t value = 0;
+    ret = ret ?: get_pc_init(value);
+    algo_cfg->pc_init = value;
+
+    ret = ret ?: get_pc_uninit(value);
+    algo_cfg->pc_uninit = value;
+
+    ret = ret ?: get_pc_program_page(value);
+    algo_cfg->pc_program_page = value;
+
+    ret = ret ?: get_pc_erase_sector(value);
+    algo_cfg->pc_erase_sector = value;
+
+    ret = ret ?: get_pc_erase_all(value);
+    algo_cfg->pc_erase_all = value;
+
+    ret = ret ?: get_data_section_offset(value);
+    algo_cfg->data_section_offset = value;
+
+    ret = ret ?: get_flash_start_addr(value);
+    algo_cfg->flash_start_addr = value;
+
+    ret = ret ?: get_flash_end_addr(value);
+    algo_cfg->flash_end_addr = value;
+
+    ret = ret ?: get_page_size(value);
+    algo_cfg->flash_page_size = value;
+
+    ret = ret ?: get_sector_size(value);
+    algo_cfg->flash_sector_size = value;
+
+    ret = ret ?: get_program_page_timeout(value);
+    algo_cfg->program_timeout = value;
+
+    ret = ret ?: get_erased_byte_val(value);
+    algo_cfg->erased_byte = value;
+
+    ret = ret ?: get_erase_sector_timeout(value);
+    algo_cfg->erase_timeout = value;
+
+    ret = ret ?: get_ram_size_byte(value);
+    algo_cfg->ram_size = value;
+
+    ret = ret ?: get_flash_size_byte(value);
+    algo_cfg->flash_size = value;
 
     return ret;
 }
