@@ -34,7 +34,7 @@ public:
 private:
     swd_headless_flasher() = default;
     uint32_t written_len = 0;
-    firmware_manager fw_mgr = {};
+    firmware_manager &fw_mgr = firmware_manager::instance();
     led_ctrl &led = led_ctrl::instance();
     swd_prog &swd = swd_prog::instance();
     manifest_mgr &manifest = manifest_mgr::instance();

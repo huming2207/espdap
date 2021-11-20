@@ -42,7 +42,14 @@ namespace fw_def
 class firmware_manager
 {
 public:
-    firmware_manager() = default;
+    static firmware_manager& instance()
+    {
+        static firmware_manager instance;
+        return instance;
+    }
+    firmware_manager(firmware_manager const &) = delete;
+    void operator=(firmware_manager const &) = delete;
+
     esp_err_t init();
     esp_err_t get_algo_name(char *algo_name, size_t len) const;
     esp_err_t get_target_name(char *target_name, size_t len) const;
@@ -97,5 +104,6 @@ public:
 
 private:
     static const constexpr char *TAG = "fw_mgr";
+    firmware_manager() = default;
     std::shared_ptr<nvs::NVSHandle> nvs = soul_nvs::instance().nvs();
 };
