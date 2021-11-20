@@ -26,6 +26,6 @@ Tested on ESP32-S2 only but it should work on ESP32-S3.
 ## License
 
 This project (except 3rd-party libraries in `components` directory) has two types of licenses:
-  - GPLv3 for non-commercial purposes
-  - Commercial licenses for any commercial purposes, speak to me (the author) for more details.
+  - AGPL-3.0 for non-commercial purposes
+  - Commercial licenses for any commercial purposes, speak to me (the author, Jackson Ming Hu, huming2207 at gmail.com) for more details.
 
