@@ -22,6 +22,12 @@
 
 namespace cdc_def
 {
+    enum file_recv_state : uint8_t {
+        FILE_RECV_NONE = 0,
+        FILE_RECV_FW = 1,
+        FILE_RECV_ALGO = 2,
+    };
+
     enum event : uint32_t {
         EVT_NEW_PACKET = BIT(0),
         EVT_READING_PKT = BIT(1),
@@ -33,12 +39,12 @@ namespace cdc_def
         PKT_DEVICE_INFO = 1,
         PKT_GET_CONFIG = 2,
         PKT_SET_CONFIG = 3,
-        PKT_GET_ALGO_INFO = 4,
-        PKT_SET_ALGO_BIN = 5,
-        PKT_GET_FW_INFO = 6,
-        PKT_SET_FW_BIN = 7,
+        PKT_GET_ALGO_METADATA = 4,
+        PKT_SET_ALGO_METADATA = 5,
+        PKT_GET_FW_METADATA = 6,
+        PKT_SET_FW_METADATA = 7,
         PKT_PING = 8,
-        PKT_SEND_CHUNK = 9,
+        PKT_DATA_CHUNK = 9,
         PKT_CHUNK_ACK = 10,
         PKT_NACK = 0xff,
     };
@@ -47,7 +53,7 @@ namespace cdc_def
         CHUNK_XFER_DONE = 0,
         CHUNK_XFER_NEXT = 1,
         CHUNK_ERR_CRC32_FAIL = 2,
-        CHUNK_ERR_LEN_OVERFLOW = 3,
+        CHUNK_ERR_UNEXPECTED = 3,
     };
 
     struct __attribute__((packed)) chunk_ack_pkt {
@@ -80,6 +86,12 @@ namespace cdc_def
         char dev_model[32];
         char dev_build[32];
     };
+
+    struct __attribute__((packed)) fw_info {
+        uint32_t crc; // 4
+        uint32_t len; // 4
+        char name[32]; // 32
+    }; // 40 bytes
 }
 
 class cdc_acm
@@ -110,9 +122,9 @@ private:
     void parse_get_config();
     void parse_set_config();
     void parse_get_algo_info();
-    void parse_set_algo_bin();
+    void parse_set_algo_metadata();
     void parse_get_fw_info();
-    void parse_set_fw_bin();
+    void parse_set_fw_metadata();
     void parse_chunk();
 
 public:
@@ -127,5 +139,6 @@ private:
     volatile bool busy_decoding = false;
     volatile size_t curr_rx_len = 0;
     uint8_t *decoded_buf = nullptr;
+    cdc_def::file_recv_state recv_state = cdc_def::FILE_RECV_NONE;
 };
 

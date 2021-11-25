@@ -283,7 +283,13 @@ uint16_t cdc_acm::get_crc16(const uint8_t *buf, size_t len, uint16_t init)
 
 void cdc_acm::parse_pkt()
 {
-    if (curr_rx_len < 1) return;
+    if (curr_rx_len < sizeof(cdc_def::header)) {
+        ESP_LOGW(TAG, "Packet too short, failed to decode header: %u", curr_rx_len);
+        recv_state = cdc_def::FILE_RECV_NONE;
+        send_nack();
+        return;
+    }
+
     auto *header = (cdc_def::header *)decoded_buf;
 
     uint16_t expected_crc = header->crc;
@@ -292,6 +298,12 @@ void cdc_acm::parse_pkt()
     uint16_t actual_crc = get_crc16(decoded_buf, curr_rx_len);
     if (actual_crc != expected_crc) {
         ESP_LOGW(TAG, "Incoming packet CRC corrupted, expect 0x%x, actual 0x%x", expected_crc, actual_crc);
+        send_nack();
+        return;
+    }
+
+    if (recv_state != cdc_def::FILE_RECV_NONE && header->type != cdc_def::PKT_DATA_CHUNK) {
+        ESP_LOGW(TAG, "Invalid state - data chunk expected while received type 0x%x", header->type);
         send_nack();
         return;
     }
@@ -317,23 +329,33 @@ void cdc_acm::parse_pkt()
             break;
         }
 
-        case cdc_def::PKT_SET_ALGO_BIN: {
-            parse_set_algo_bin();
+        case cdc_def::PKT_SET_ALGO_METADATA: {
+            parse_set_algo_metadata();
             break;
         }
 
-        case cdc_def::PKT_GET_ALGO_INFO: {
+        case cdc_def::PKT_GET_ALGO_METADATA: {
             parse_get_algo_info();
             break;
         }
 
-        case cdc_def::PKT_SET_FW_BIN: {
-            parse_set_fw_bin();
+        case cdc_def::PKT_SET_FW_METADATA: {
+            parse_set_fw_metadata();
             break;
         }
 
-        case cdc_def::PKT_GET_FW_INFO:{
+        case cdc_def::PKT_GET_FW_METADATA:{
             parse_get_fw_info();
+            break;
+        }
+
+        case cdc_def::PKT_DATA_CHUNK: {
+            if (recv_state != cdc_def::FILE_RECV_NONE) {
+                parse_chunk();
+            } else {
+                ESP_LOGW(TAG, "Invalid state - no chunk expected to come or should have EOL'ed??");
+                send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, 0);
+            }
             break;
         }
 
@@ -360,9 +382,9 @@ void cdc_acm::parse_get_algo_info()
 
 }
 
-void cdc_acm::parse_set_algo_bin()
+void cdc_acm::parse_set_algo_metadata()
 {
-
+    recv_state = cdc_def::FILE_RECV_ALGO;
 }
 
 void cdc_acm::parse_get_fw_info()
@@ -370,14 +392,16 @@ void cdc_acm::parse_get_fw_info()
 
 }
 
-void cdc_acm::parse_set_fw_bin()
+void cdc_acm::parse_set_fw_metadata()
 {
-
+    recv_state = cdc_def::FILE_RECV_FW;
 }
 
 void cdc_acm::parse_chunk()
 {
-
+    // TODO:
+    // 1. After full buffer received, send CHUNK_ACK with state EOL
+    // 2. otherwise, send CHUNK_ACK with state NEXT
 }
 
 
