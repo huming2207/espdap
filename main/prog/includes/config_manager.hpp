@@ -6,11 +6,11 @@
 #include <soul_nvs.hpp>
 #include <driver/gpio.h>
 
-#define FW_MGR_MAGIC_NUMBER 0x4a485349
+#define CFG_MGR_PKT_MAGIC 0x4a485349
 
-namespace fw_def
+namespace cfg_def
 {
-    struct __attribute__((packed)) flash_algo_cfg
+    struct __attribute__((packed)) config_pkt
     {
         uint32_t magic;
         uint32_t pc_init;
@@ -39,16 +39,16 @@ namespace fw_def
     };
 }
 
-class firmware_manager
+class config_manager
 {
 public:
-    static firmware_manager& instance()
+    static config_manager& instance()
     {
-        static firmware_manager instance;
+        static config_manager instance;
         return instance;
     }
-    firmware_manager(firmware_manager const &) = delete;
-    void operator=(firmware_manager const &) = delete;
+    config_manager(config_manager const &) = delete;
+    void operator=(config_manager const &) = delete;
 
     esp_err_t init();
     esp_err_t get_algo_name(char *algo_name, size_t len) const;
@@ -103,7 +103,7 @@ public:
     esp_err_t read_algo_info(uint8_t *out, size_t len) const;
 
 private:
-    static const constexpr char *TAG = "fw_mgr";
-    firmware_manager() = default;
+    static const constexpr char *TAG = "cfg_mgr";
+    config_manager() = default;
     std::shared_ptr<nvs::NVSHandle> nvs = soul_nvs::instance().nvs();
 };
