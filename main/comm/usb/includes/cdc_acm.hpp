@@ -60,7 +60,7 @@ namespace cdc_def
         chunk_ack state;
 
         // Can be:
-        // 1. Next chunk index (when state == 1)
+        // 1. Next chunk offset (when state == 1)
         // 2. Expected CRC32 (when state == 2)
         // 3. Max length allowed (when state == 3)
         // 4. Just 0 (when state == anything else?)
@@ -87,11 +87,21 @@ namespace cdc_def
         char dev_build[32];
     };
 
+    struct __attribute__((packed)) algo_info {
+        uint32_t crc; // 4
+        uint32_t len; // 4
+    }; // 8 bytes
+
     struct __attribute__((packed)) fw_info {
         uint32_t crc; // 4
         uint32_t len; // 4
         char name[32]; // 32
     }; // 40 bytes
+
+    struct __attribute__((packed)) chunk_pkt {
+        uint8_t len;
+        uint8_t buf[UINT8_MAX];
+    };
 }
 
 class cdc_acm
@@ -135,10 +145,14 @@ public:
 
 private:
     static const constexpr char *TAG = "cdc_acm";
+    cdc_def::file_recv_state recv_state = cdc_def::FILE_RECV_NONE;
     EventGroupHandle_t rx_event = nullptr;
     volatile bool busy_decoding = false;
     volatile size_t curr_rx_len = 0;
+    size_t chunk_expect_len = 0;
+    size_t chunk_curr_offset = 0;
+    uint32_t chunk_crc = 0;
     uint8_t *decoded_buf = nullptr;
-    cdc_def::file_recv_state recv_state = cdc_def::FILE_RECV_NONE;
+    uint8_t *chunk_buf = nullptr;
 };
 

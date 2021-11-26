@@ -3,7 +3,7 @@
 #include <esp_flash.h>
 
 #include "cdc_acm.hpp"
-
+#include "config_manager.hpp"
 
 
 esp_err_t cdc_acm::init()
@@ -384,7 +384,19 @@ void cdc_acm::parse_get_algo_info()
 
 void cdc_acm::parse_set_algo_metadata()
 {
+    auto *algo_info = (cdc_def::algo_info *)(decoded_buf + sizeof(cdc_def::header));
+    if (algo_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE) {
+        ESP_LOGE(TAG, "Flash algo metadata len too long: %u", algo_info->len);
+        send_nack();
+        return;
+    }
+
+    chunk_expect_len = algo_info->len;
+    chunk_crc = algo_info->crc;
+    chunk_buf = static_cast<uint8_t *>(malloc(algo_info->len));
+    memset(chunk_buf, 0, algo_info->len);
     recv_state = cdc_def::FILE_RECV_ALGO;
+    send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, 0);
 }
 
 void cdc_acm::parse_get_fw_info()
@@ -394,14 +406,80 @@ void cdc_acm::parse_get_fw_info()
 
 void cdc_acm::parse_set_fw_metadata()
 {
+    auto *fw_info = (cdc_def::fw_info *)(decoded_buf + sizeof(cdc_def::header));
+    if (fw_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE) {
+        ESP_LOGE(TAG, "Firmware metadata len too long: %u", fw_info->len);
+        send_nack();
+        return;
+    }
+
+    chunk_expect_len = fw_info->len;
+    chunk_crc = fw_info->crc;
+    chunk_buf = static_cast<uint8_t *>(malloc(fw_info->len));
+    memset(chunk_buf, 0, fw_info->len);
     recv_state = cdc_def::FILE_RECV_FW;
+    send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, 0);
 }
 
 void cdc_acm::parse_chunk()
 {
-    // TODO:
     // 1. After full buffer received, send CHUNK_ACK with state EOL
     // 2. otherwise, send CHUNK_ACK with state NEXT
+    // 3. or,
+
+    auto *chunk = (cdc_def::chunk_pkt *)(decoded_buf + sizeof(cdc_def::header));
+
+    // Scenario 0: if len == 0 then that's force abort, discard the buffer and set back the states
+    if (chunk->len == 0) {
+        ESP_LOGE(TAG, "Zero len chunk - force abort!");
+        chunk_expect_len = 0;
+        chunk_curr_offset = 0;
+        chunk_crc = 0;
+        if (chunk_buf != nullptr) {
+            free(chunk_buf);
+            chunk_buf = nullptr;
+        }
+        recv_state = cdc_def::FILE_RECV_NONE;
+        send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, 0);
+        return;
+    }
+
+    // Scenario 1: if len is too long, reject & abort.
+    if (chunk->len + chunk_curr_offset > chunk_expect_len) {
+        ESP_LOGE(TAG, "Chunk recv buffer is full, incoming %u while expect %u only", chunk->len + chunk_curr_offset, chunk_expect_len);
+        chunk_expect_len = 0;
+        chunk_curr_offset = 0;
+        chunk_crc = 0;
+        if (chunk_buf != nullptr) {
+            free(chunk_buf);
+            chunk_buf = nullptr;
+        }
+        recv_state = cdc_def::FILE_RECV_NONE;
+        send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, chunk->len + chunk_curr_offset);
+        return;
+    }
+
+    // Scenario 2: Normal recv
+    memcpy(chunk_buf + chunk_curr_offset, chunk->buf, chunk_expect_len);
+    chunk_curr_offset += chunk->len; // Add offset
+    if (chunk_curr_offset == chunk_expect_len) {
+        // Check full file CRC here
+        auto actual_crc = esp_crc32_le(0, chunk_buf, chunk_curr_offset);
+        if (actual_crc == chunk_crc) {
+            ESP_LOGI(TAG, "Chunk recv successful!!");
+            send_chunk_ack(cdc_def::CHUNK_XFER_DONE, chunk_curr_offset);
+
+            // TODO: handle finished buffer here
+
+            free(chunk_buf);
+        } else {
+            ESP_LOGE(TAG, "Chunk recv CRC mismatched!!");
+            send_chunk_ack(cdc_def::CHUNK_ERR_CRC32_FAIL, actual_crc);
+        }
+    } else {
+        ESP_LOGI(TAG, "Chunk recv - await next @ %u", chunk_curr_offset);
+        send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, chunk_curr_offset);
+    }
 }
 
 
