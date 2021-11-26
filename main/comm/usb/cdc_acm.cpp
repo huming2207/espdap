@@ -423,14 +423,10 @@ void cdc_acm::parse_set_fw_metadata()
 
 void cdc_acm::parse_chunk()
 {
-    // 1. After full buffer received, send CHUNK_ACK with state EOL
-    // 2. otherwise, send CHUNK_ACK with state NEXT
-    // 3. or,
-
     auto *chunk = (cdc_def::chunk_pkt *)(decoded_buf + sizeof(cdc_def::header));
 
     // Scenario 0: if len == 0 then that's force abort, discard the buffer and set back the states
-    if (chunk->len == 0) {
+    if (unlikely(chunk->len == 0)) {
         ESP_LOGE(TAG, "Zero len chunk - force abort!");
         chunk_expect_len = 0;
         chunk_curr_offset = 0;
@@ -445,7 +441,7 @@ void cdc_acm::parse_chunk()
     }
 
     // Scenario 1: if len is too long, reject & abort.
-    if (chunk->len + chunk_curr_offset > chunk_expect_len) {
+    if (unlikely(chunk->len + chunk_curr_offset > chunk_expect_len)) {
         ESP_LOGE(TAG, "Chunk recv buffer is full, incoming %u while expect %u only", chunk->len + chunk_curr_offset, chunk_expect_len);
         chunk_expect_len = 0;
         chunk_curr_offset = 0;
@@ -469,9 +465,22 @@ void cdc_acm::parse_chunk()
             ESP_LOGI(TAG, "Chunk recv successful!!");
             send_chunk_ack(cdc_def::CHUNK_XFER_DONE, chunk_curr_offset);
 
-            // TODO: handle finished buffer here
+            if (recv_state == cdc_def::FILE_RECV_ALGO) {
+                auto &cfg_mgr = config_manager::instance();
+                cfg_mgr.set_algo_bin(chunk_buf, chunk_expect_len);
+                cfg_mgr.set_algo_bin_len(chunk_expect_len);
+            } else if(recv_state == cdc_def::FILE_RECV_FW) {
+                // TODO: handle finished firmware file here
+            }
+
 
             free(chunk_buf);
+            chunk_buf = nullptr;
+            chunk_expect_len = 0;
+            chunk_curr_offset = 0;
+            chunk_crc = 0;
+            recv_state = cdc_def::FILE_RECV_NONE;
+
         } else {
             ESP_LOGE(TAG, "Chunk recv CRC mismatched!!");
             send_chunk_ack(cdc_def::CHUNK_ERR_CRC32_FAIL, actual_crc);
