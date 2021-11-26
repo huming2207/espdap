@@ -462,13 +462,13 @@ void cdc_acm::parse_chunk()
         // Check full file CRC here
         auto actual_crc = esp_crc32_le(0, chunk_buf, chunk_curr_offset);
         if (actual_crc == chunk_crc) {
-            ESP_LOGI(TAG, "Chunk recv successful!!");
-            send_chunk_ack(cdc_def::CHUNK_XFER_DONE, chunk_curr_offset);
+            ESP_LOGI(TAG, "Chunk recv successful, got %u bytes", chunk_curr_offset);
 
+            auto ret = ESP_OK;
             if (recv_state == cdc_def::FILE_RECV_ALGO) {
                 auto &cfg_mgr = config_manager::instance();
-                cfg_mgr.set_algo_bin(chunk_buf, chunk_expect_len);
-                cfg_mgr.set_algo_bin_len(chunk_expect_len);
+                ret = cfg_mgr.set_algo_bin(chunk_buf, chunk_expect_len);
+                ret = ret ?: cfg_mgr.set_algo_bin_len(chunk_expect_len);
             } else if(recv_state == cdc_def::FILE_RECV_FW) {
                 // TODO: handle finished firmware file here
             }
@@ -481,6 +481,13 @@ void cdc_acm::parse_chunk()
             chunk_crc = 0;
             recv_state = cdc_def::FILE_RECV_NONE;
 
+            if (ret != ESP_OK) {
+                ESP_LOGE(TAG, "Error occur when processing recv buffer: 0x%x", ret);
+                send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, 0);
+            } else {
+                ESP_LOGI(TAG, "Chunk transfer done!");
+                send_chunk_ack(cdc_def::CHUNK_XFER_DONE, chunk_curr_offset);
+            }
         } else {
             ESP_LOGE(TAG, "Chunk recv CRC mismatched!!");
             send_chunk_ack(cdc_def::CHUNK_ERR_CRC32_FAIL, actual_crc);
