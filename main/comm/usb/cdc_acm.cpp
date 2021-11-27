@@ -374,7 +374,16 @@ void cdc_acm::parse_get_config()
 
 void cdc_acm::parse_set_config()
 {
+    auto *buf = (uint8_t *)(decoded_buf + sizeof(cdc_def::header));
 
+    auto &cfg_mgr = config_manager::instance();
+    auto ret = cfg_mgr.save_cfg(buf, curr_rx_len - sizeof(cdc_def::header));
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Set config failed, returned 0x%x: %s", ret, esp_err_to_name(ret));
+        send_nack();
+    } else {
+        send_ack();
+    }
 }
 
 void cdc_acm::parse_get_algo_info()
@@ -482,7 +491,7 @@ void cdc_acm::parse_chunk()
             recv_state = cdc_def::FILE_RECV_NONE;
 
             if (ret != ESP_OK) {
-                ESP_LOGE(TAG, "Error occur when processing recv buffer: 0x%x", ret);
+                ESP_LOGE(TAG, "Error occur when processing recv buffer, returned 0x%x: %s", ret, esp_err_to_name(ret));
                 send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, 0);
             } else {
                 ESP_LOGI(TAG, "Chunk transfer done!");
