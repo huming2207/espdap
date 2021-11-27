@@ -7,6 +7,8 @@
 #include <driver/gpio.h>
 
 #define CFG_MGR_PKT_MAGIC 0x4a485349
+#define CFG_MGR_FLASH_ALGO_MAX_SIZE  65536
+#define CFG_MGR_FW_MAX_SIZE 1048576
 
 namespace cfg_def
 {
