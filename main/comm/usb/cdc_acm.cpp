@@ -319,8 +319,8 @@ void cdc_acm::parse_pkt()
             break;
         }
 
-        case cdc_def::PKT_GET_CONFIG: {
-            parse_get_config();
+        case cdc_def::PKT_CURR_CONFIG: {
+            send_curr_config();
             break;
         }
 
@@ -367,9 +367,21 @@ void cdc_acm::parse_pkt()
     }
 }
 
-void cdc_acm::parse_get_config()
+void cdc_acm::send_curr_config()
 {
+    auto &cfg_mgr = config_manager::instance();
 
+    if (!cfg_mgr.has_valid_cfg()) {
+        if(cfg_mgr.load_default_cfg() != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to load default config");
+            send_nack();
+            return;
+        }
+    }
+
+    uint8_t buf[sizeof(cfg_def::config_pkt)] = { 0 };
+    cfg_mgr.read_cfg(buf, sizeof(cfg_def::config_pkt));
+    send_pkt(cdc_def::PKT_CURR_CONFIG, buf, sizeof(cfg_def::config_pkt));
 }
 
 void cdc_acm::parse_set_config()
