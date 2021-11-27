@@ -37,7 +37,7 @@ namespace cdc_def
     enum pkt_type : uint8_t {
         PKT_ACK = 0,
         PKT_DEVICE_INFO = 1,
-        PKT_GET_CONFIG = 2,
+        PKT_CURR_CONFIG = 2,
         PKT_SET_CONFIG = 3,
         PKT_GET_ALGO_METADATA = 4,
         PKT_SET_ALGO_METADATA = 5,
@@ -129,7 +129,7 @@ public:
 
 private:
     void parse_pkt();
-    void parse_get_config();
+    static void send_curr_config();
     void parse_set_config();
     void parse_get_algo_info();
     void parse_set_algo_metadata();
