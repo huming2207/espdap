@@ -204,7 +204,7 @@ esp_err_t config_manager::set_sector_size(uint32_t value)
 esp_err_t config_manager::save_cfg(const uint8_t *buf, size_t len)
 {
     if (len < sizeof(cfg_def::config_pkt)) {
-        ESP_LOGE(TAG, "Incoming data too short");
+        ESP_LOGE(TAG, "Incoming data too short, got %u but expecting %lu", len, sizeof(cfg_def::config_pkt));
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -238,7 +238,7 @@ esp_err_t config_manager::save_cfg(const uint8_t *buf, size_t len)
     ret = ret ?: set_flash_size_byte(algo_cfg->flash_size);
     ret = ret ?: set_algo_name(algo_cfg->name);
     ret = ret ?: set_target_name(algo_cfg->target);
-
+    ret = ret ?: set_has_cfg_flag(true);
     return ret;
 }
 
@@ -407,7 +407,9 @@ esp_err_t config_manager::load_default_cfg()
     cfg.ram_size = 20480;
     cfg.flash_size = 131072;
 
-    return save_cfg((const uint8_t *)&cfg, sizeof(cfg));
+    auto ret = set_has_cfg_flag(true);
+    ret = ret ?: save_cfg((const uint8_t *)&cfg, sizeof(cfg));
+    return ret;
 }
 
 bool config_manager::has_valid_cfg() const
