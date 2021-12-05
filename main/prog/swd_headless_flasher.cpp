@@ -13,7 +13,7 @@ esp_err_t swd_headless_flasher::init()
     led.set_color(60,0,0,30);
 
     ret = ret ?: manifest.init();
-    ret = ret ?: algo.init("/soul/flash_algo.json");
+    ret = ret ?: cfg_manager.init();
 
     ret = ret ?: file_utils::validate_firmware_file("/soul/firmware.bin", manifest.get_manifests()[0].fw_checksum);
     if (ret != ESP_OK) return ret;
@@ -64,7 +64,10 @@ void swd_headless_flasher::on_error()
 void swd_headless_flasher::on_erase()
 {
     ESP_LOGI(TAG, "Erasing");
-    auto ret = swd.erase_sector(algo.get_flash_start_addr(), algo.get_flash_end_addr());
+    uint32_t start_addr = 0, end_addr = 0;
+    auto ret = cfg_manager.get_flash_start_addr(start_addr);
+    ret = ret ?: cfg_manager.get_flash_end_addr(end_addr);
+    ret = ret ?: swd.erase_sector(start_addr, end_addr);
     if (ret != ESP_OK) {
         for (uint32_t idx = 0; idx < 32; idx++) {
             on_error();
@@ -95,11 +98,11 @@ void swd_headless_flasher::on_program()
 void swd_headless_flasher::on_detect()
 {
     ESP_LOGI(TAG, "Detecting");
-    auto ret = swd.init(&algo);
+    auto ret = swd.init(&cfg_manager);
     while (ret != ESP_OK) {
         on_error();
         ESP_LOGE(TAG, "Detect failed, retrying");
-        ret = swd.init(&algo);
+        ret = swd.init(&cfg_manager);
     }
 
     state = flasher::ERASE; // To erase
