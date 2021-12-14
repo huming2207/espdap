@@ -66,6 +66,12 @@ esp_err_t cdc_acm::init()
         return ESP_ERR_NO_MEM;
     }
 
+    raw_buf = static_cast<uint8_t *>(heap_caps_malloc(CONFIG_TINYUSB_CDC_RX_BUFSIZE, MALLOC_CAP_SPIRAM));
+    if (raw_buf == nullptr) {
+        ESP_LOGE(TAG, "Failed to allocate SLIP raw buf");
+        return ESP_ERR_NO_MEM;
+    }
+
     return ret;
 }
 
@@ -81,38 +87,48 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
         return;
     }
 
-    ESP_LOGI(TAG, "Before SLIP:");
-    ESP_LOG_BUFFER_HEX(TAG, rx_buf, rx_size);
+    if (rx_size < 1) {
+        return;
+    } else {
+        memcpy(ctx.raw_buf + ctx.raw_len, rx_buf, rx_size);
+        ctx.raw_len += rx_size;
+    }
 
-    if (rx_size < 1) return;
+    // Start to decode if this is the last packet, otherwise continue to cache
+    if (rx_buf[rx_size - 1] == SLIP_END) {
+        size_t idx = 0;
+        while (idx < ctx.raw_len && ctx.decoded_len < CONFIG_TINYUSB_CDC_RX_BUFSIZE) {
+            if (ctx.raw_buf[idx] == SLIP_END) {
+                if (ctx.decoded_len > 0) {
+                    ESP_LOGI(TAG, "Before SLIP, size %u:", ctx.raw_len);
+                    ESP_LOG_BUFFER_HEX(TAG, ctx.raw_buf, ctx.raw_len);
 
-    size_t idx = 0;
-    while (idx < rx_size && ctx.curr_rx_len < CONFIG_TINYUSB_CDC_RX_BUFSIZE) {
-        if (rx_buf[idx] == SLIP_END) {
-            if (ctx.curr_rx_len > 0) {
-                xEventGroupSetBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET);
+                    xEventGroupSetBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET);
+                    ctx.raw_len = 0;
+                    memset(ctx.raw_buf, 0, CONFIG_TINYUSB_CDC_RX_BUFSIZE);
+                } else {
+                    xEventGroupClearBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET);
+                }
+            } else if (ctx.raw_buf[idx] == SLIP_ESC) {
+                idx += 1;
+                if (ctx.raw_buf[idx] == SLIP_ESC_END) {
+                    ctx.decoded_buf[ctx.decoded_len] = SLIP_END;
+                } else if (ctx.raw_buf[idx] == SLIP_ESC_ESC) {
+                    ctx.decoded_buf[ctx.decoded_len] = SLIP_ESC;
+                } else {
+                    xEventGroupSetBits(ctx.rx_event, cdc_def::EVT_SLIP_ERROR);
+                    ESP_LOGE(TAG, "SLIP decoding detected a corrupted packet");
+                    return;
+                }
+
+                ctx.decoded_len += 1;
             } else {
-                xEventGroupClearBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET);
+                ctx.decoded_buf[ctx.decoded_len] = ctx.raw_buf[idx];
+                ctx.decoded_len += 1;
             }
-        } else if (rx_buf[idx] == SLIP_ESC) {
+
             idx += 1;
-            if (rx_buf[idx] == SLIP_ESC_END) {
-                ctx.decoded_buf[ctx.curr_rx_len] = SLIP_END;
-            } else if (rx_buf[idx] == SLIP_ESC_ESC) {
-                ctx.decoded_buf[ctx.curr_rx_len] = SLIP_ESC;
-            } else {
-                xEventGroupSetBits(ctx.rx_event, cdc_def::EVT_SLIP_ERROR);
-                ESP_LOGE(TAG, "SLIP decoding detected a corrupted packet");
-                return;
-            }
-
-            ctx.curr_rx_len += 1;
-        } else {
-            ctx.decoded_buf[ctx.curr_rx_len] = rx_buf[idx];
-            ctx.curr_rx_len += 1;
         }
-
-        idx += 1;
     }
 }
 
@@ -125,14 +141,14 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
             // Pause Rx
             tinyusb_cdcacm_unregister_callback(TINYUSB_CDC_ACM_0, CDC_EVENT_RX);
 
-            ESP_LOGI(TAG, "Now in buffer:");
-            ESP_LOG_BUFFER_HEX(TAG, ctx.decoded_buf, ctx.curr_rx_len);
+            ESP_LOGI(TAG, "Now in buffer, len: %u :", ctx.decoded_len);
+            ESP_LOG_BUFFER_HEX(TAG, ctx.decoded_buf, ctx.decoded_len);
 
             // Now do parsing
             ctx.parse_pkt();
 
             // Clear up the mess
-            ctx.curr_rx_len = 0;
+            ctx.decoded_len = 0;
             memset(ctx.decoded_buf, 0, CONFIG_TINYUSB_CDC_RX_BUFSIZE);
 
             // Restart Rx
@@ -283,8 +299,8 @@ uint16_t cdc_acm::get_crc16(const uint8_t *buf, size_t len, uint16_t init)
 
 void cdc_acm::parse_pkt()
 {
-    if (curr_rx_len < sizeof(cdc_def::header)) {
-        ESP_LOGW(TAG, "Packet too short, failed to decode header: %u", curr_rx_len);
+    if (decoded_len < sizeof(cdc_def::header)) {
+        ESP_LOGW(TAG, "Packet too short, failed to decode header: %u", decoded_len);
         recv_state = cdc_def::FILE_RECV_NONE;
         send_nack();
         return;
@@ -295,7 +311,7 @@ void cdc_acm::parse_pkt()
     uint16_t expected_crc = header->crc;
     header->crc = 0;
 
-    uint16_t actual_crc = get_crc16(decoded_buf, curr_rx_len);
+    uint16_t actual_crc = get_crc16(decoded_buf, decoded_len);
     if (actual_crc != expected_crc) {
         ESP_LOGW(TAG, "Incoming packet CRC corrupted, expect 0x%x, actual 0x%x", expected_crc, actual_crc);
         send_nack();
@@ -386,10 +402,11 @@ void cdc_acm::send_curr_config()
 
 void cdc_acm::parse_set_config()
 {
+    ESP_LOGW(TAG, "Got SET_CONFIG!!!");
     auto *buf = (uint8_t *)(decoded_buf + sizeof(cdc_def::header));
 
     auto &cfg_mgr = config_manager::instance();
-    auto ret = cfg_mgr.save_cfg(buf, curr_rx_len - sizeof(cdc_def::header));
+    auto ret = cfg_mgr.save_cfg(buf, decoded_len - sizeof(cdc_def::header));
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Set config failed, returned 0x%x: %s", ret, esp_err_to_name(ret));
         send_nack();
