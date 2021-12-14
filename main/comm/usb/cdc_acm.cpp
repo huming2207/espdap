@@ -498,7 +498,7 @@ void cdc_acm::parse_chunk()
     chunk_curr_offset += chunk->len; // Add offset
     if (chunk_curr_offset == chunk_expect_len) {
         // Check full file CRC here
-        auto actual_crc = esp_crc32_le(0, chunk_buf, chunk_curr_offset);
+        auto actual_crc = esp_crc32_le(0, chunk_buf, chunk_expect_len);
         if (actual_crc == chunk_crc) {
             ESP_LOGI(TAG, "Chunk recv successful, got %u bytes", chunk_curr_offset);
 
@@ -527,11 +527,12 @@ void cdc_acm::parse_chunk()
                 send_chunk_ack(cdc_def::CHUNK_XFER_DONE, chunk_curr_offset);
             }
         } else {
-            ESP_LOGE(TAG, "Chunk recv CRC mismatched!!");
+            ESP_LOGE(TAG, "Chunk recv CRC mismatched, expect 0x%04x but got 0x%04x", chunk_crc, actual_crc);
+            ESP_LOG_BUFFER_HEX_LEVEL(TAG, chunk_buf, chunk_expect_len, ESP_LOG_WARN);
             send_chunk_ack(cdc_def::CHUNK_ERR_CRC32_FAIL, actual_crc);
         }
     } else {
-        ESP_LOGI(TAG, "Chunk recv - await next @ %u", chunk_curr_offset);
+        ESP_LOGI(TAG, "Chunk recv - await next @ %u, total %u", chunk_curr_offset, chunk_expect_len);
         send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, chunk_curr_offset);
     }
 }
