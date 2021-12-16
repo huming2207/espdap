@@ -12,7 +12,7 @@ Offline firmware downloader for ARM Cortex-M, on an ESP32-S3.
 - [x] USB CDC-ACM communication (WIP, almost there)
 - [ ] SWD on SPI Master, instead of bit-banging
 
-## To-do list - other platforms except SWD
+## To-do list - other platforms except Cortex-M & SWD
 
 - [ ] ESP32 Bootloader UART firmware downloading 
 - [ ] GD32VF103 RISC-V, over JTAG??
