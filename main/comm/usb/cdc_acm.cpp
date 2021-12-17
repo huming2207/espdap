@@ -44,7 +44,7 @@ esp_err_t cdc_acm::init()
     tinyusb_config_cdcacm_t acm_cfg = {};
     acm_cfg.usb_dev = TINYUSB_USBDEV_0;
     acm_cfg.cdc_port = TINYUSB_CDC_ACM_0;
-    acm_cfg.rx_unread_buf_sz = 64;
+    acm_cfg.rx_unread_buf_sz = 512;
     acm_cfg.callback_rx = &serial_rx_cb;
     acm_cfg.callback_rx_wanted_char = nullptr;
     acm_cfg.callback_line_state_changed = nullptr;
@@ -370,7 +370,7 @@ void cdc_acm::parse_pkt()
                 parse_chunk();
             } else {
                 ESP_LOGW(TAG, "Invalid state - no chunk expected to come or should have EOL'ed??");
-                send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, 0);
+                send_chunk_ack(cdc_def::CHUNK_ERR_INTERNAL, 0);
             }
             break;
         }
@@ -422,7 +422,7 @@ void cdc_acm::parse_get_algo_info()
 void cdc_acm::parse_set_algo_metadata()
 {
     auto *algo_info = (cdc_def::algo_info *)(decoded_buf + sizeof(cdc_def::header));
-    if (algo_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE) {
+    if (algo_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < algo_info->len) {
         ESP_LOGE(TAG, "Flash algo metadata len too long: %u", algo_info->len);
         send_nack();
         return;
@@ -444,7 +444,7 @@ void cdc_acm::parse_get_fw_info()
 void cdc_acm::parse_set_fw_metadata()
 {
     auto *fw_info = (cdc_def::fw_info *)(decoded_buf + sizeof(cdc_def::header));
-    if (fw_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE) {
+    if (fw_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < fw_info->len) {
         ESP_LOGE(TAG, "Firmware metadata len too long: %u", fw_info->len);
         send_nack();
         return;
@@ -473,7 +473,7 @@ void cdc_acm::parse_chunk()
             chunk_buf = nullptr;
         }
         recv_state = cdc_def::FILE_RECV_NONE;
-        send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, 0);
+        send_chunk_ack(cdc_def::CHUNK_ERR_ABORT_REQUESTED, 0);
         return;
     }
 
@@ -488,7 +488,7 @@ void cdc_acm::parse_chunk()
             chunk_buf = nullptr;
         }
         recv_state = cdc_def::FILE_RECV_NONE;
-        send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, chunk->len + chunk_curr_offset);
+        send_chunk_ack(cdc_def::CHUNK_ERR_NAME_TOO_LONG, chunk->len + chunk_curr_offset);
         return;
     }
 
@@ -520,7 +520,7 @@ void cdc_acm::parse_chunk()
 
             if (ret != ESP_OK) {
                 ESP_LOGE(TAG, "Error occur when processing recv buffer, returned 0x%x: %s", ret, esp_err_to_name(ret));
-                send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, 0);
+                send_chunk_ack(cdc_def::CHUNK_ERR_INTERNAL, ret);
             } else {
                 ESP_LOGI(TAG, "Chunk transfer done!");
                 send_chunk_ack(cdc_def::CHUNK_XFER_DONE, chunk_curr_offset);

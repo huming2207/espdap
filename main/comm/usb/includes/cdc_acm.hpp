@@ -53,7 +53,9 @@ namespace cdc_def
         CHUNK_XFER_DONE = 0,
         CHUNK_XFER_NEXT = 1,
         CHUNK_ERR_CRC32_FAIL = 2,
-        CHUNK_ERR_UNEXPECTED = 3,
+        CHUNK_ERR_INTERNAL = 3,
+        CHUNK_ERR_ABORT_REQUESTED = 4,
+        CHUNK_ERR_NAME_TOO_LONG = 5,
     };
 
     struct __attribute__((packed)) chunk_ack_pkt {
