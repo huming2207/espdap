@@ -104,6 +104,8 @@ public:
     esp_err_t save_algo(const uint8_t *buf, size_t len);
     esp_err_t read_algo_info(uint8_t *out, size_t len) const;
 
+    esp_err_t save_firmware(const uint8_t *buf, size_t len, uint32_t crc_expect);
+
 private:
     static const constexpr char *TAG = "cfg_mgr";
     static const constexpr char *BASE_PATH = "/soul";

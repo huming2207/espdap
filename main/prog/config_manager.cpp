@@ -5,6 +5,7 @@
 #include <esp_spiffs.h>
 
 #include "config_manager.hpp"
+#include "file_utils.hpp"
 
 esp_err_t config_manager::init()
 {
@@ -24,8 +25,6 @@ esp_err_t config_manager::init()
 
     ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        // NVS partition was truncated and needs to be erased
-        // Retry nvs_flash_init
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
@@ -495,5 +494,37 @@ esp_err_t config_manager::set_fw_crc(uint32_t crc)
 esp_err_t config_manager::get_fw_crc(uint32_t &out) const
 {
     return nvs->get_item("fw_crc", out);
+}
+
+esp_err_t config_manager::save_firmware(const uint8_t *buf, size_t len, uint32_t crc_expect)
+{
+    FILE *file = fopen(FIRMWARE_PATH, "wb");
+    if (file == nullptr) {
+        ESP_LOGE(TAG, "Failed to open firmware path");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    auto ret = fwrite(buf, 1, len, file);
+    if (ret < 1) {
+        ESP_LOGE(TAG, "Failed to write the whole firmware");
+        fclose(file);
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    fflush(file);
+    fclose(file);
+
+    if (file_utils::validate_firmware_file(FIRMWARE_PATH, crc_expect) != ESP_OK) {
+        ESP_LOGE(TAG, "Saved file CRC didn't match!");
+        remove(FIRMWARE_PATH);
+        return ESP_ERR_INVALID_CRC;
+    }
+
+    if (nvs->set_item("fw_crc", crc_expect) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to save CRC");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    return ESP_OK;
 }
 
