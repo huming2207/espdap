@@ -4,7 +4,7 @@
 #include <esp_log.h>
 #include <led_ctrl.hpp>
 #include <esp_crc.h>
-#include <file_utils.hpp>
+
 #include "swd_headless_flasher.hpp"
 
 esp_err_t swd_headless_flasher::init()
@@ -12,10 +12,7 @@ esp_err_t swd_headless_flasher::init()
     auto ret = led.init(GPIO_NUM_48);
     led.set_color(60,0,0,30);
 
-    ret = ret ?: manifest.init();
     ret = ret ?: cfg_manager.init();
-
-    ret = ret ?: file_utils::validate_firmware_file("/soul/firmware.bin", manifest.get_manifests()[0].fw_checksum);
     if (ret != ESP_OK) return ret;
 
     while (true) {
@@ -81,10 +78,8 @@ void swd_headless_flasher::on_erase()
 
 void swd_headless_flasher::on_program()
 {
-    char path[128] = { 0 };
-    snprintf(path, sizeof(path), "/soul/%s", manifest.get_manifests()[0].fw_name);
     int64_t ts = esp_timer_get_time();
-    auto ret = swd.program_file(path, &written_len);
+    auto ret = swd.program_file(config_manager::FIRMWARE_PATH, &written_len);
     if (ret != ESP_OK) {
         state = flasher::ERROR;
     } else {
@@ -118,7 +113,13 @@ void swd_headless_flasher::on_done()
 
 void swd_headless_flasher::on_verify()
 {
-    if (swd.verify(manifest.get_manifests()[0].fw_checksum, UINT32_MAX, written_len) != ESP_OK) {
+    uint32_t crc = 0;
+    if (config_manager::instance().get_fw_crc(crc) != ESP_OK) {
+        state = flasher::ERROR;
+        return;
+    }
+
+    if (swd.verify(crc, UINT32_MAX, written_len) != ESP_OK) {
         state = flasher::ERROR;
     } else {
         state = flasher::DONE;

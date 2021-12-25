@@ -520,7 +520,7 @@ esp_err_t config_manager::save_firmware(const uint8_t *buf, size_t len, uint32_t
         return ESP_ERR_INVALID_CRC;
     }
 
-    if (nvs->set_item("fw_crc", crc_expect) != ESP_OK) {
+    if (set_fw_crc(crc_expect) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to save CRC");
         return ESP_ERR_INVALID_STATE;
     }

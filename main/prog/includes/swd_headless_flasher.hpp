@@ -2,7 +2,7 @@
 
 #include <config_manager.hpp>
 #include <led_ctrl.hpp>
-#include <manifest_mgr.hpp>
+#include <blob_manager.hpp>
 #include <esp_err.h>
 #include "swd_prog.hpp"
 
@@ -37,7 +37,6 @@ private:
     config_manager &cfg_manager = config_manager::instance();
     led_ctrl &led = led_ctrl::instance();
     swd_prog &swd = swd_prog::instance();
-    manifest_mgr &manifest = manifest_mgr::instance();
     flasher::pg_state state = flasher::DETECT;
 
     static const constexpr char *TAG = "swd_hdls_flr";
