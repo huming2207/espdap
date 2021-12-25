@@ -106,11 +106,11 @@ public:
 
     esp_err_t save_firmware(const uint8_t *buf, size_t len, uint32_t crc_expect);
 
-private:
-    static const constexpr char *TAG = "cfg_mgr";
     static const constexpr char *BASE_PATH = "/soul";
     static const constexpr char *FIRMWARE_PATH = "/soul/firmware.bin";
-    static const constexpr char *FLASH_ALGO_PATH = "/soul/flash_algo.bin";
+
+private:
+    static const constexpr char *TAG = "cfg_mgr";
 
     config_manager() = default;
     std::shared_ptr<nvs::NVSHandle> nvs;
