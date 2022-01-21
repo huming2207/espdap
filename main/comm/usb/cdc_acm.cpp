@@ -502,14 +502,12 @@ void cdc_acm::parse_chunk()
             ESP_LOGI(TAG, "Chunk recv successful, got %u bytes", chunk_expect_len);
 
             auto ret = ESP_OK;
+            auto &cfg_mgr = config_manager::instance();
             if (recv_state == cdc_def::FILE_RECV_ALGO) {
-                auto &cfg_mgr = config_manager::instance();
-                ret = cfg_mgr.set_algo_bin(chunk_buf, chunk_expect_len);
-                ret = ret ?: cfg_mgr.set_algo_bin_len(chunk_expect_len);
+                ret = cfg_mgr.save_algo(chunk_buf, chunk_expect_len);
             } else if(recv_state == cdc_def::FILE_RECV_FW) {
-                // TODO: handle finished firmware file here
+                ret = cfg_mgr.save_firmware(chunk_buf, chunk_expect_len, actual_crc);
             }
-
 
             free(chunk_buf);
             chunk_buf = nullptr;
