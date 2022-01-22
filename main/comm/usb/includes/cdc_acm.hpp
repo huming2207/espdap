@@ -128,6 +128,8 @@ private:
 
 public:
     esp_err_t init();
+    esp_err_t pause_usb();
+    esp_err_t unpause_usb();
 
 private:
     void parse_pkt();
@@ -139,7 +141,7 @@ private:
     void parse_set_fw_metadata();
     void parse_chunk();
 
-public:
+private:
     static esp_err_t send_ack(uint16_t crc = 0, uint32_t timeout_ms = portMAX_DELAY);
     static esp_err_t send_nack(uint32_t timeout_ms = portMAX_DELAY);
     static esp_err_t send_dev_info(uint32_t timeout_ms = portMAX_DELAY);
