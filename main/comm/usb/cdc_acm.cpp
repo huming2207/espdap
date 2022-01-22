@@ -534,6 +534,23 @@ void cdc_acm::parse_chunk()
     }
 }
 
+esp_err_t cdc_acm::pause_usb()
+{
+    if (!tusb_inited()) return ESP_ERR_INVALID_STATE;
+    xEventGroupClearBits(rx_event, cdc_def::EVT_NEW_PACKET);
+
+    return tinyusb_cdcacm_unregister_callback(TINYUSB_CDC_ACM_0, CDC_EVENT_RX);
+}
+
+esp_err_t cdc_acm::unpause_usb()
+{
+    if (!tusb_inited()) return ESP_ERR_INVALID_STATE;
+    decoded_len = 0;
+    memset(decoded_buf, 0, CONFIG_TINYUSB_CDC_RX_BUFSIZE);
+
+    return tinyusb_cdcacm_register_callback(TINYUSB_CDC_ACM_0, CDC_EVENT_RX, serial_rx_cb);
+}
+
 
 
 
