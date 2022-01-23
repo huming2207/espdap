@@ -152,6 +152,7 @@ private:
     cdc_def::file_recv_state recv_state = cdc_def::FILE_RECV_NONE;
     EventGroupHandle_t rx_event = nullptr;
     volatile bool busy_decoding = false;
+    volatile bool paused = false;
     volatile size_t decoded_len = 0;
     volatile size_t raw_len = 0;
     size_t chunk_expect_len = 0;
