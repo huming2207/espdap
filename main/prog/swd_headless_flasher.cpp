@@ -6,6 +6,7 @@
 #include <esp_crc.h>
 
 #include "swd_headless_flasher.hpp"
+#include "cdc_acm.hpp"
 
 esp_err_t swd_headless_flasher::init()
 {
@@ -13,6 +14,8 @@ esp_err_t swd_headless_flasher::init()
     led.set_color(60,0,0,30);
 
     ret = ret ?: cfg_manager.init();
+    ret = ret ?: cdc.init();
+
     if (ret != ESP_OK) return ret;
 
     while (true) {
@@ -53,9 +56,9 @@ esp_err_t swd_headless_flasher::init()
 void swd_headless_flasher::on_error()
 {
     led.set_color(80, 0, 0, 50);
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(300));
     led.set_color(0, 0, 0, 50);
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(300));
 }
 
 void swd_headless_flasher::on_erase()
@@ -88,6 +91,8 @@ void swd_headless_flasher::on_program()
         ESP_LOGI(TAG, "Firmware written, len: %u, speed: %.2f bytes per sec", written_len, speed);
         state = flasher::VERIFY;
     }
+
+    cdc.unpause_usb();
 }
 
 void swd_headless_flasher::on_detect()
@@ -100,6 +105,7 @@ void swd_headless_flasher::on_detect()
         ret = swd.init(&cfg_manager);
     }
 
+    cdc.pause_usb();
     state = flasher::ERASE; // To erase
 }
 
@@ -108,7 +114,7 @@ void swd_headless_flasher::on_done()
     led.set_color(0, 80, 0, 50);
     vTaskDelay(pdMS_TO_TICKS(50));
     led.set_color(0, 0, 0, 50);
-    vTaskDelay(pdMS_TO_TICKS(200));
+    vTaskDelay(pdMS_TO_TICKS(500));
 }
 
 void swd_headless_flasher::on_verify()
