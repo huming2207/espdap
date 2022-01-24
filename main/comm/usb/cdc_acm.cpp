@@ -58,7 +58,7 @@ esp_err_t cdc_acm::init()
         return ESP_ERR_NO_MEM;
     }
 
-    xTaskCreate(rx_handler_task, "cdc_rx", 16384, this, tskIDLE_PRIORITY + 1, nullptr);
+    xTaskCreatePinnedToCore(rx_handler_task, "cdc_rx", 16384, this, tskIDLE_PRIORITY + 1, nullptr, 0);
 
     decoded_buf = static_cast<uint8_t *>(heap_caps_malloc(CONFIG_TINYUSB_CDC_RX_BUFSIZE, MALLOC_CAP_SPIRAM));
     if (decoded_buf == nullptr) {
@@ -69,6 +69,7 @@ esp_err_t cdc_acm::init()
     raw_buf = static_cast<uint8_t *>(heap_caps_malloc(CONFIG_TINYUSB_CDC_RX_BUFSIZE, MALLOC_CAP_SPIRAM));
     if (raw_buf == nullptr) {
         ESP_LOGE(TAG, "Failed to allocate SLIP raw buf");
+        free(decoded_buf);
         return ESP_ERR_NO_MEM;
     }
 
