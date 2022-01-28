@@ -102,8 +102,6 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
             if (ctx.raw_buf[idx] == SLIP_END) {
                 if (ctx.decoded_len > 0) {
                     ESP_LOGI(TAG, "Before SLIP, size %u:", ctx.raw_len);
-                    // ESP_LOG_BUFFER_HEX(TAG, ctx.raw_buf, ctx.raw_len);
-
                     xEventGroupSetBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET);
                     ctx.raw_len = 0;
                     memset(ctx.raw_buf, 0, CONFIG_TINYUSB_CDC_RX_BUFSIZE);
@@ -494,8 +492,10 @@ void cdc_acm::parse_chunk()
     }
 
     // Scenario 2: Normal recv
-    memcpy(chunk_buf + chunk_curr_offset, chunk->buf, chunk_expect_len);
+    ESP_LOGW(TAG, "Copy to: %p; len: %u, off: %u, base: %p", chunk_buf + chunk_curr_offset, chunk->len, chunk_curr_offset, chunk_buf);
+    memcpy(chunk_buf + chunk_curr_offset, chunk->buf, chunk->len);
     chunk_curr_offset += chunk->len; // Add offset
+
     if (chunk_curr_offset == chunk_expect_len) {
         // Check full file CRC here
         auto actual_crc = esp_crc32_le(0, chunk_buf, chunk_expect_len);
