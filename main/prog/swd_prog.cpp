@@ -61,14 +61,23 @@ esp_err_t swd_prog::load_flash_algorithm()
         return ESP_ERR_NO_MEM;
     }
 
+    if (fw_mgr->get_algo_bin(algo_bin, algo_bin_len) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read algo bin");
+        free(algo_bin);
+        return ESP_ERR_INVALID_STATE;
+    }
+
     ret = swd_write_memory(code_start + sizeof(header_blob), algo_bin, algo_bin_len);
     if (ret < 1) {
         ESP_LOGE(TAG, "Failed when writing main flash algorithm");
         state = swd_def::UNKNOWN;
+
+        free(algo_bin);
         return ESP_FAIL;
     }
 
     state = swd_def::FLASH_ALG_LOADED;
+    free(algo_bin);
     return ESP_OK;
 }
 
@@ -108,6 +117,8 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
             return ESP_ERR_INVALID_STATE;
         }
 
+        ESP_LOGD(TAG, "Flash start addr = 0x%x, pc_init = 0x%x", flash_start_addr, pc_init);
+
         ret = swd_flash_syscall_exec(
                 &syscall,
                 func_offset + pc_init, // Init PC (usually) = 1, +0x20 for header (but somehow actually 0?)
@@ -118,7 +129,7 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
         );
 
         if (ret < 1) {
-            ESP_LOGW(TAG, "Failed when init algorith, retrying...");
+            ESP_LOGW(TAG, "Failed when init algorithm, returned %d, retrying...", ret);
             init(fw_mgr, ram_addr, stack_size); // Re-init SWD as well (so that target will reset)
             retry_cnt -= 1;
         } else {
