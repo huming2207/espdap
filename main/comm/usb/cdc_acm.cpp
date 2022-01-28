@@ -424,7 +424,7 @@ void cdc_acm::parse_set_algo_metadata()
 {
     auto *algo_info = (cdc_def::algo_info *)(decoded_buf + sizeof(cdc_def::header));
     if (algo_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < algo_info->len) {
-        ESP_LOGE(TAG, "Flash algo metadata len too long: %u", algo_info->len);
+        ESP_LOGE(TAG, "Flash algo metadata len too long: %u, free block: %u", algo_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
         send_nack();
         return;
     }
