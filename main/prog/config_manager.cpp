@@ -382,14 +382,8 @@ esp_err_t config_manager::save_algo(const uint8_t *buf, size_t len)
         return ESP_ERR_INVALID_ARG;
     }
 
-    uint32_t expect_len = ((buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0]);
-    if (expect_len < len) {
-        ESP_LOGE(TAG, "Incoming buffer is too short");
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    auto ret = set_algo_bin_len(expect_len);
-    ret = ret ?: set_algo_bin(buf + sizeof(uint32_t), expect_len);
+    auto ret = set_algo_bin_len(len);
+    ret = ret ?: set_algo_bin(buf, len);
 
     return ret;
 }
