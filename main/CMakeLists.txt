@@ -26,5 +26,3 @@ idf_component_register(
         EMBED_FILES
             "resources/stm32l0x1.bin"
 )
-
-spiffs_create_partition_image(storage fs_sample FLASH_IN_PROJECT)
