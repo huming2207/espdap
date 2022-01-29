@@ -1,14 +1,45 @@
 #include <cstring>
 #include <esp_log.h>
 #include <esp_crc.h>
+#include <driver/spi_master.h>
+#include <esp_spiffs.h>
 
 #include "config_manager.hpp"
+#include "file_utils.hpp"
 
 esp_err_t config_manager::init()
 {
+    esp_vfs_spiffs_conf_t spiffs_config = {};
+    spiffs_config.base_path = BASE_PATH;
+    spiffs_config.format_if_mount_failed = false;
+    spiffs_config.max_files = 10;
+    spiffs_config.partition_label = nullptr;
 
+    auto ret = esp_vfs_spiffs_register(&spiffs_config);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize SPIFFS: %s", esp_err_to_name(ret));
+        return ret;
+    } else {
+        ESP_LOGI(TAG, "Storage filesystem mounted to %s", BASE_PATH);
+    }
 
-    return ESP_OK;
+    ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open NVS partition!");
+        return ret;
+    }
+
+    nvs = nvs::open_nvs_handle("soul", NVS_READWRITE, &ret);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open NVS handle!");
+    }
+
+    return ret;
 }
 
 esp_err_t config_manager::get_algo_name(char *algo_name, size_t len) const
@@ -108,103 +139,126 @@ esp_err_t config_manager::get_sector_size(uint32_t &out) const
 
 esp_err_t config_manager::set_algo_name(const char *algo_name)
 {
+    ESP_LOGI(TAG, "New algo name: %s", algo_name);
     return nvs->set_string("name", algo_name);
 }
 
 esp_err_t config_manager::set_target_name(const char *target_name)
 {
+    ESP_LOGI(TAG, "New target name: %s", target_name);
     return nvs->set_string("target", target_name);
 }
 
 esp_err_t config_manager::set_algo_bin(const uint8_t *algo, size_t len)
 {
-    return nvs->set_blob("algo_bin", algo, len);
+    auto ret = nvs->set_item("algo_len", len);
+    ret = ret ?: nvs->set_blob("algo_bin", algo, len);
+    ret = ret ?: nvs->commit();
+    return ret;
 }
 
 esp_err_t config_manager::set_algo_bin_len(uint32_t value)
 {
-    return nvs->set_item("algo_len", value);
+    ESP_LOGI(TAG, "New algo len: %u", value);
+    auto ret = nvs->set_item("algo_len", value);
+    ret = ret ?: nvs->commit();
+    return ret;
 }
 
 esp_err_t config_manager::set_ram_size_byte(uint32_t value)
 {
+    ESP_LOGI(TAG, "New ram_size value: %u", value);
     return nvs->set_item("ram_size", value);
 }
 
 esp_err_t config_manager::set_flash_size_byte(uint32_t value)
 {
+    ESP_LOGI(TAG, "New flash_size value: %u", value);
     return nvs->set_item("flash_size", value);
 }
 
 esp_err_t config_manager::set_pc_init(uint32_t value)
 {
+    ESP_LOGI(TAG, "New pc_init value: 0x%08x", value);
     return nvs->set_item("pc_init", value);
 }
 
 esp_err_t config_manager::set_pc_uninit(uint32_t value)
 {
+    ESP_LOGI(TAG, "New pc_uninit value: 0x%08x", value);
     return nvs->set_item("pc_uninit", value);
 }
 
 esp_err_t config_manager::set_pc_program_page(uint32_t value)
 {
+    ESP_LOGI(TAG, "New pc_prg_page value: 0x%08x", value);
     return nvs->set_item("pc_prog_page", value);
 }
 
 esp_err_t config_manager::set_pc_erase_sector(uint32_t value)
 {
+    ESP_LOGI(TAG, "New pc_erase_sector value: 0x%08x", value);
     return nvs->set_item("pc_erase_sector", value);
 }
 
 esp_err_t config_manager::set_pc_erase_all(uint32_t value)
 {
+    ESP_LOGI(TAG, "New pc_erase_all value: 0x%08x", value);
     return nvs->set_item("pc_erase_all", value);
 }
 
 esp_err_t config_manager::set_data_section_offset(uint32_t value)
 {
+    ESP_LOGI(TAG, "New data section offset value: 0x%x", value);
     return nvs->set_item("data_sc_offset", value);
 }
 
 esp_err_t config_manager::set_flash_start_addr(uint32_t value)
 {
+    ESP_LOGI(TAG, "New flash_start_addr value: 0x%08x", value);
     return nvs->set_item("fl_start_addr", value);
 }
 
 esp_err_t config_manager::set_flash_end_addr(uint32_t value)
 {
+    ESP_LOGI(TAG, "New flash_end_addr value: 0x%08x", value);
     return nvs->set_item("fl_end_addr", value);
 }
 
 esp_err_t config_manager::set_page_size(uint32_t value)
 {
+    ESP_LOGI(TAG, "New page_size value: %u", value);
     return nvs->set_item("flash_page_size", value);
 }
 
 esp_err_t config_manager::set_erased_byte_val(uint32_t value)
 {
+    ESP_LOGI(TAG, "New erased_byte value: %u", value);
     return nvs->set_item("erased_byte", value);
 }
 
 esp_err_t config_manager::set_program_page_timeout(uint32_t value)
 {
+    ESP_LOGI(TAG, "New prg_page_timeout value: %u", value);
     return nvs->set_item("prog_timeout", value);
 }
 
 esp_err_t config_manager::set_erase_sector_timeout(uint32_t value)
 {
+    ESP_LOGI(TAG, "New erase_sector_timeout value: %u", value);
     return nvs->set_item("erase_timeout", value);
 }
 
 esp_err_t config_manager::set_sector_size(uint32_t value)
 {
+    ESP_LOGI(TAG, "New erased_byte value: %u", value);
     return nvs->set_item("flash_sector_sz", value);
 }
 
 esp_err_t config_manager::save_cfg(const uint8_t *buf, size_t len)
 {
     if (len < sizeof(cfg_def::config_pkt)) {
-        ESP_LOGE(TAG, "Incoming data too short, got %u but expecting %lu", len, sizeof(cfg_def::config_pkt));
+        ESP_LOGE(TAG, "Incoming data too short, got %u but expecting %zu", len, sizeof(cfg_def::config_pkt));
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -220,6 +274,8 @@ esp_err_t config_manager::save_cfg(const uint8_t *buf, size_t len)
         ESP_LOGE(TAG, "Invalid magic, expect 0x4a485349 got 0x%x", algo_cfg->magic);
         return ESP_ERR_INVALID_ARG;
     }
+
+    ESP_LOGI(TAG, "Got config!!");
 
     auto ret = set_pc_init(algo_cfg->pc_init);
     ret = ret ?: set_pc_uninit(algo_cfg->pc_uninit);
@@ -326,14 +382,8 @@ esp_err_t config_manager::save_algo(const uint8_t *buf, size_t len)
         return ESP_ERR_INVALID_ARG;
     }
 
-    uint32_t expect_len = ((buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0]);
-    if (expect_len < len) {
-        ESP_LOGE(TAG, "Incoming buffer is too short");
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    auto ret = set_algo_bin_len(expect_len);
-    ret = ret ?: set_algo_bin(buf + sizeof(uint32_t), expect_len);
+    auto ret = set_algo_bin_len(len);
+    ret = ret ?: set_algo_bin(buf, len);
 
     return ret;
 }
@@ -407,6 +457,8 @@ esp_err_t config_manager::load_default_cfg()
     cfg.ram_size = 20480;
     cfg.flash_size = 131072;
 
+    ESP_LOGI(TAG, "Loading default config...");
+
     auto ret = set_has_cfg_flag(true);
     ret = ret ?: save_cfg((const uint8_t *)&cfg, sizeof(cfg));
     return ret;
@@ -436,5 +488,37 @@ esp_err_t config_manager::set_fw_crc(uint32_t crc)
 esp_err_t config_manager::get_fw_crc(uint32_t &out) const
 {
     return nvs->get_item("fw_crc", out);
+}
+
+esp_err_t config_manager::save_firmware(const uint8_t *buf, size_t len, uint32_t crc_expect)
+{
+    FILE *file = fopen(FIRMWARE_PATH, "wb");
+    if (file == nullptr) {
+        ESP_LOGE(TAG, "Failed to open firmware path");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    auto ret = fwrite(buf, 1, len, file);
+    if (ret < 1) {
+        ESP_LOGE(TAG, "Failed to write the whole firmware");
+        fclose(file);
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    fflush(file);
+    fclose(file);
+
+    if (file_utils::validate_firmware_file(FIRMWARE_PATH, crc_expect) != ESP_OK) {
+        ESP_LOGE(TAG, "Saved file CRC didn't match!");
+        remove(FIRMWARE_PATH);
+        return ESP_ERR_INVALID_CRC;
+    }
+
+    if (set_fw_crc(crc_expect) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to save CRC");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    return ESP_OK;
 }
 

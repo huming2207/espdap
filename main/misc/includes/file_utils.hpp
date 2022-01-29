@@ -9,7 +9,7 @@ private:
     static const constexpr char *TAG = "file_utils";
 
 public:
-    static esp_err_t validate_firmware_file(const char *path, uint32_t crc)
+    static esp_err_t validate_firmware_file(const char *path, uint32_t crc, size_t len = 0)
     {
         if (path == nullptr) {
             ESP_LOGE(TAG, "Path is null!");
@@ -22,16 +22,18 @@ public:
             return ESP_ERR_NOT_FOUND;
         }
 
-        fseek(file, 0, SEEK_END);
-        size_t len = ftell(file);
-        if (len < 4 || len % 4 != 0) {
-            ESP_LOGE(TAG, "Manifest in a wrong length: %u", len);
-            fclose(file);
-            return ESP_ERR_INVALID_STATE;
+        if (len < 1) {
+            fseek(file, 0, SEEK_END);
+            len = ftell(file);
+            if (len < 4 || len % 4 != 0) {
+                ESP_LOGE(TAG, "Manifest in a wrong length: %u", len);
+                fclose(file);
+                return ESP_ERR_INVALID_STATE;
+            }
+
+            fseek(file, 0, SEEK_SET);
+
         }
-
-        fseek(file, 0, SEEK_SET);
-
 
         uint32_t actual_crc = 0;
         while(len > 0) {

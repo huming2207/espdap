@@ -1,6 +1,6 @@
 # Build system cache
 build/
-cmake-build-debug/
+cmake*/
 
 # VSCode settings
 .vscode/
