@@ -443,8 +443,9 @@ void cdc_acm::parse_get_fw_info()
 void cdc_acm::parse_set_fw_metadata()
 {
     auto *fw_info = (cdc_def::fw_info *)(decoded_buf + sizeof(cdc_def::header));
-    if (fw_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < fw_info->len) {
-        ESP_LOGE(TAG, "Firmware metadata len too long: %u", fw_info->len);
+    if (fw_info->len > CFG_MGR_FW_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < fw_info->len) {
+        ESP_LOGE(TAG, "Firmware metadata len too long: %u, free heap: %u", fw_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+        heap_caps_dump(MALLOC_CAP_SPIRAM);
         send_nack();
         return;
     }
