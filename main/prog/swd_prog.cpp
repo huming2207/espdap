@@ -338,7 +338,7 @@ esp_err_t swd_prog::program_page(const uint8_t *buf, size_t len, uint32_t start_
     uint32_t remain_len = len;
     for (uint32_t page_idx = 0; page_idx < (len / page_size); page_idx += 1) {
         uint32_t write_size = std::min(page_size, remain_len);
-        swd_ret = swd_write_memory(0x20000f00, (uint8_t *)(buf + (page_idx * page_size)), write_size);
+        swd_ret = swd_write_memory(syscall.static_base, (uint8_t *)(buf + (page_idx * page_size)), write_size);
         if (swd_ret < 1) {
             ESP_LOGE(TAG, "Failed when writing RAM cache");
             state = swd_def::UNKNOWN;
@@ -351,7 +351,7 @@ esp_err_t swd_prog::program_page(const uint8_t *buf, size_t len, uint32_t start_
                 func_offset + pc_program_page, // ErasePage PC = 305
                 addr_offset + (page_idx * page_size), // r0 = flash base addr
                 write_size,
-                0x20000f00, 0, // r1 = len, r2 = buf addr
+                syscall.static_base, 0, // r1 = len, r2 = buf addr
                 FLASHALGO_RETURN_BOOL
         );
 
@@ -448,7 +448,7 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t *len_written, uint32
             write_size = read_len;
         }
 
-        swd_ret = swd_write_memory(0x20000f00, (uint8_t *)buf, write_size);
+        swd_ret = swd_write_memory(syscall.static_base, (uint8_t *)buf, write_size);
         if (swd_ret < 1) {
             ESP_LOGE(TAG, "Failed when writing RAM cache");
             delete[] buf;
@@ -462,7 +462,7 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t *len_written, uint32
                 func_offset + pc_program_page, // ErasePage PC = 305
                 addr_offset + (page_idx * page_size), // r0 = flash base addr
                 write_size,
-                0x20000f00, 0, // r1 = len, r2 = buf addr
+                syscall.static_base, 0, // r1 = len, r2 = buf addr
                 FLASHALGO_RETURN_BOOL
         );
 
