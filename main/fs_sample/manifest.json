@@ -1,8 +1,0 @@
-[
-  {
-    "fwCrc": 123,
-    "algCrc": 678,
-    "fwName": "test.bin",
-    "algName": "stm32l071"
-  }
-]

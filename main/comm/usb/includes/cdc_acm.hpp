@@ -53,7 +53,9 @@ namespace cdc_def
         CHUNK_XFER_DONE = 0,
         CHUNK_XFER_NEXT = 1,
         CHUNK_ERR_CRC32_FAIL = 2,
-        CHUNK_ERR_UNEXPECTED = 3,
+        CHUNK_ERR_INTERNAL = 3,
+        CHUNK_ERR_ABORT_REQUESTED = 4,
+        CHUNK_ERR_NAME_TOO_LONG = 5,
     };
 
     struct __attribute__((packed)) chunk_ack_pkt {
@@ -126,6 +128,8 @@ private:
 
 public:
     esp_err_t init();
+    esp_err_t pause_usb();
+    esp_err_t unpause_usb();
 
 private:
     void parse_pkt();
@@ -137,7 +141,7 @@ private:
     void parse_set_fw_metadata();
     void parse_chunk();
 
-public:
+private:
     static esp_err_t send_ack(uint16_t crc = 0, uint32_t timeout_ms = portMAX_DELAY);
     static esp_err_t send_nack(uint32_t timeout_ms = portMAX_DELAY);
     static esp_err_t send_dev_info(uint32_t timeout_ms = portMAX_DELAY);
@@ -148,10 +152,13 @@ private:
     cdc_def::file_recv_state recv_state = cdc_def::FILE_RECV_NONE;
     EventGroupHandle_t rx_event = nullptr;
     volatile bool busy_decoding = false;
-    volatile size_t curr_rx_len = 0;
+    volatile bool paused = false;
+    volatile size_t decoded_len = 0;
+    volatile size_t raw_len = 0;
     size_t chunk_expect_len = 0;
     size_t chunk_curr_offset = 0;
     uint32_t chunk_crc = 0;
+    uint8_t *raw_buf = nullptr;
     uint8_t *decoded_buf = nullptr;
     uint8_t *chunk_buf = nullptr;
 };

@@ -44,7 +44,7 @@ esp_err_t cdc_acm::init()
     tinyusb_config_cdcacm_t acm_cfg = {};
     acm_cfg.usb_dev = TINYUSB_USBDEV_0;
     acm_cfg.cdc_port = TINYUSB_CDC_ACM_0;
-    acm_cfg.rx_unread_buf_sz = 64;
+    acm_cfg.rx_unread_buf_sz = 512;
     acm_cfg.callback_rx = &serial_rx_cb;
     acm_cfg.callback_rx_wanted_char = nullptr;
     acm_cfg.callback_line_state_changed = nullptr;
@@ -58,11 +58,18 @@ esp_err_t cdc_acm::init()
         return ESP_ERR_NO_MEM;
     }
 
-    xTaskCreate(rx_handler_task, "cdc_rx", 8192, this, tskIDLE_PRIORITY + 1, nullptr);
+    xTaskCreatePinnedToCore(rx_handler_task, "cdc_rx", 16384, this, tskIDLE_PRIORITY + 1, nullptr, 0);
 
     decoded_buf = static_cast<uint8_t *>(heap_caps_malloc(CONFIG_TINYUSB_CDC_RX_BUFSIZE, MALLOC_CAP_SPIRAM));
     if (decoded_buf == nullptr) {
         ESP_LOGE(TAG, "Failed to allocate SLIP decode buf");
+        return ESP_ERR_NO_MEM;
+    }
+
+    raw_buf = static_cast<uint8_t *>(heap_caps_malloc(CONFIG_TINYUSB_CDC_RX_BUFSIZE, MALLOC_CAP_SPIRAM));
+    if (raw_buf == nullptr) {
+        ESP_LOGE(TAG, "Failed to allocate SLIP raw buf");
+        free(decoded_buf);
         return ESP_ERR_NO_MEM;
     }
 
@@ -81,38 +88,46 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
         return;
     }
 
-    ESP_LOGI(TAG, "Before SLIP:");
-    ESP_LOG_BUFFER_HEX(TAG, rx_buf, rx_size);
+    if (rx_size < 1) {
+        return;
+    } else {
+        memcpy(ctx.raw_buf + ctx.raw_len, rx_buf, rx_size);
+        ctx.raw_len += rx_size;
+    }
 
-    if (rx_size < 1) return;
+    // Start to decode if this is the last packet, otherwise continue to cache
+    if (rx_buf[rx_size - 1] == SLIP_END) {
+        size_t idx = 0;
+        while (idx < ctx.raw_len && ctx.decoded_len < CONFIG_TINYUSB_CDC_RX_BUFSIZE) {
+            if (ctx.raw_buf[idx] == SLIP_END) {
+                if (ctx.decoded_len > 0) {
+                    ESP_LOGI(TAG, "Before SLIP, size %u:", ctx.raw_len);
+                    xEventGroupSetBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET);
+                    ctx.raw_len = 0;
+                    memset(ctx.raw_buf, 0, CONFIG_TINYUSB_CDC_RX_BUFSIZE);
+                } else {
+                    xEventGroupClearBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET);
+                }
+            } else if (ctx.raw_buf[idx] == SLIP_ESC) {
+                idx += 1;
+                if (ctx.raw_buf[idx] == SLIP_ESC_END) {
+                    ctx.decoded_buf[ctx.decoded_len] = SLIP_END;
+                } else if (ctx.raw_buf[idx] == SLIP_ESC_ESC) {
+                    ctx.decoded_buf[ctx.decoded_len] = SLIP_ESC;
+                } else {
+                    xEventGroupSetBits(ctx.rx_event, cdc_def::EVT_SLIP_ERROR);
+                    ESP_LOGE(TAG, "SLIP decoding detected a corrupted packet");
+                    return;
+                }
 
-    size_t idx = 0;
-    while (idx < rx_size && ctx.curr_rx_len < CONFIG_TINYUSB_CDC_RX_BUFSIZE) {
-        if (rx_buf[idx] == SLIP_END) {
-            if (ctx.curr_rx_len > 0) {
-                xEventGroupSetBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET);
+                ctx.decoded_len += 1;
             } else {
-                xEventGroupClearBits(ctx.rx_event, cdc_def::EVT_NEW_PACKET);
+                ctx.decoded_buf[ctx.decoded_len] = ctx.raw_buf[idx];
+                ctx.decoded_len += 1;
             }
-        } else if (rx_buf[idx] == SLIP_ESC) {
+
             idx += 1;
-            if (rx_buf[idx] == SLIP_ESC_END) {
-                ctx.decoded_buf[ctx.curr_rx_len] = SLIP_END;
-            } else if (rx_buf[idx] == SLIP_ESC_ESC) {
-                ctx.decoded_buf[ctx.curr_rx_len] = SLIP_ESC;
-            } else {
-                xEventGroupSetBits(ctx.rx_event, cdc_def::EVT_SLIP_ERROR);
-                ESP_LOGE(TAG, "SLIP decoding detected a corrupted packet");
-                return;
-            }
-
-            ctx.curr_rx_len += 1;
-        } else {
-            ctx.decoded_buf[ctx.curr_rx_len] = rx_buf[idx];
-            ctx.curr_rx_len += 1;
         }
-
-        idx += 1;
     }
 }
 
@@ -125,14 +140,14 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
             // Pause Rx
             tinyusb_cdcacm_unregister_callback(TINYUSB_CDC_ACM_0, CDC_EVENT_RX);
 
-            ESP_LOGI(TAG, "Now in buffer:");
-            ESP_LOG_BUFFER_HEX(TAG, ctx.decoded_buf, ctx.curr_rx_len);
+            ESP_LOGI(TAG, "Now in buffer, len: %u :", ctx.decoded_len);
+            // ESP_LOG_BUFFER_HEX(TAG, ctx.decoded_buf, ctx.decoded_len);
 
             // Now do parsing
             ctx.parse_pkt();
 
             // Clear up the mess
-            ctx.curr_rx_len = 0;
+            ctx.decoded_len = 0;
             memset(ctx.decoded_buf, 0, CONFIG_TINYUSB_CDC_RX_BUFSIZE);
 
             // Restart Rx
@@ -283,8 +298,8 @@ uint16_t cdc_acm::get_crc16(const uint8_t *buf, size_t len, uint16_t init)
 
 void cdc_acm::parse_pkt()
 {
-    if (curr_rx_len < sizeof(cdc_def::header)) {
-        ESP_LOGW(TAG, "Packet too short, failed to decode header: %u", curr_rx_len);
+    if (decoded_len < sizeof(cdc_def::header)) {
+        ESP_LOGW(TAG, "Packet too short, failed to decode header: %u", decoded_len);
         recv_state = cdc_def::FILE_RECV_NONE;
         send_nack();
         return;
@@ -295,7 +310,7 @@ void cdc_acm::parse_pkt()
     uint16_t expected_crc = header->crc;
     header->crc = 0;
 
-    uint16_t actual_crc = get_crc16(decoded_buf, curr_rx_len);
+    uint16_t actual_crc = get_crc16(decoded_buf, decoded_len);
     if (actual_crc != expected_crc) {
         ESP_LOGW(TAG, "Incoming packet CRC corrupted, expect 0x%x, actual 0x%x", expected_crc, actual_crc);
         send_nack();
@@ -354,7 +369,7 @@ void cdc_acm::parse_pkt()
                 parse_chunk();
             } else {
                 ESP_LOGW(TAG, "Invalid state - no chunk expected to come or should have EOL'ed??");
-                send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, 0);
+                send_chunk_ack(cdc_def::CHUNK_ERR_INTERNAL, 0);
             }
             break;
         }
@@ -389,7 +404,7 @@ void cdc_acm::parse_set_config()
     auto *buf = (uint8_t *)(decoded_buf + sizeof(cdc_def::header));
 
     auto &cfg_mgr = config_manager::instance();
-    auto ret = cfg_mgr.save_cfg(buf, curr_rx_len - sizeof(cdc_def::header));
+    auto ret = cfg_mgr.save_cfg(buf, decoded_len - sizeof(cdc_def::header));
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Set config failed, returned 0x%x: %s", ret, esp_err_to_name(ret));
         send_nack();
@@ -406,15 +421,15 @@ void cdc_acm::parse_get_algo_info()
 void cdc_acm::parse_set_algo_metadata()
 {
     auto *algo_info = (cdc_def::algo_info *)(decoded_buf + sizeof(cdc_def::header));
-    if (algo_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE) {
-        ESP_LOGE(TAG, "Flash algo metadata len too long: %u", algo_info->len);
+    if (algo_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < algo_info->len) {
+        ESP_LOGE(TAG, "Flash algo metadata len too long: %u, free block: %u", algo_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
         send_nack();
         return;
     }
 
     chunk_expect_len = algo_info->len;
     chunk_crc = algo_info->crc;
-    chunk_buf = static_cast<uint8_t *>(malloc(algo_info->len));
+    chunk_buf = static_cast<uint8_t *>(heap_caps_malloc(algo_info->len, MALLOC_CAP_SPIRAM));
     memset(chunk_buf, 0, algo_info->len);
     recv_state = cdc_def::FILE_RECV_ALGO;
     send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, 0);
@@ -428,15 +443,16 @@ void cdc_acm::parse_get_fw_info()
 void cdc_acm::parse_set_fw_metadata()
 {
     auto *fw_info = (cdc_def::fw_info *)(decoded_buf + sizeof(cdc_def::header));
-    if (fw_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE) {
-        ESP_LOGE(TAG, "Firmware metadata len too long: %u", fw_info->len);
+    if (fw_info->len > CFG_MGR_FW_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < fw_info->len) {
+        ESP_LOGE(TAG, "Firmware metadata len too long: %u, free heap: %u", fw_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+        heap_caps_dump(MALLOC_CAP_SPIRAM);
         send_nack();
         return;
     }
 
     chunk_expect_len = fw_info->len;
     chunk_crc = fw_info->crc;
-    chunk_buf = static_cast<uint8_t *>(malloc(fw_info->len));
+    chunk_buf = static_cast<uint8_t *>(heap_caps_malloc(fw_info->len, MALLOC_CAP_SPIRAM));
     memset(chunk_buf, 0, fw_info->len);
     recv_state = cdc_def::FILE_RECV_FW;
     send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, 0);
@@ -447,7 +463,7 @@ void cdc_acm::parse_chunk()
     auto *chunk = (cdc_def::chunk_pkt *)(decoded_buf + sizeof(cdc_def::header));
 
     // Scenario 0: if len == 0 then that's force abort, discard the buffer and set back the states
-    if (unlikely(chunk->len == 0)) {
+    if (chunk->len == 0) {
         ESP_LOGE(TAG, "Zero len chunk - force abort!");
         chunk_expect_len = 0;
         chunk_curr_offset = 0;
@@ -457,12 +473,12 @@ void cdc_acm::parse_chunk()
             chunk_buf = nullptr;
         }
         recv_state = cdc_def::FILE_RECV_NONE;
-        send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, 0);
+        send_chunk_ack(cdc_def::CHUNK_ERR_ABORT_REQUESTED, 0);
         return;
     }
 
     // Scenario 1: if len is too long, reject & abort.
-    if (unlikely(chunk->len + chunk_curr_offset > chunk_expect_len)) {
+    if (chunk->len + chunk_curr_offset > chunk_expect_len) {
         ESP_LOGE(TAG, "Chunk recv buffer is full, incoming %u while expect %u only", chunk->len + chunk_curr_offset, chunk_expect_len);
         chunk_expect_len = 0;
         chunk_curr_offset = 0;
@@ -472,28 +488,28 @@ void cdc_acm::parse_chunk()
             chunk_buf = nullptr;
         }
         recv_state = cdc_def::FILE_RECV_NONE;
-        send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, chunk->len + chunk_curr_offset);
+        send_chunk_ack(cdc_def::CHUNK_ERR_NAME_TOO_LONG, chunk->len + chunk_curr_offset);
         return;
     }
 
     // Scenario 2: Normal recv
-    memcpy(chunk_buf + chunk_curr_offset, chunk->buf, chunk_expect_len);
+    ESP_LOGW(TAG, "Copy to: %p; len: %u, off: %u, base: %p", chunk_buf + chunk_curr_offset, chunk->len, chunk_curr_offset, chunk_buf);
+    memcpy(chunk_buf + chunk_curr_offset, chunk->buf, chunk->len);
     chunk_curr_offset += chunk->len; // Add offset
+
     if (chunk_curr_offset == chunk_expect_len) {
         // Check full file CRC here
-        auto actual_crc = esp_crc32_le(0, chunk_buf, chunk_curr_offset);
+        auto actual_crc = esp_crc32_le(0, chunk_buf, chunk_expect_len);
         if (actual_crc == chunk_crc) {
-            ESP_LOGI(TAG, "Chunk recv successful, got %u bytes", chunk_curr_offset);
+            ESP_LOGI(TAG, "Chunk recv successful, got %u bytes", chunk_expect_len);
 
             auto ret = ESP_OK;
+            auto &cfg_mgr = config_manager::instance();
             if (recv_state == cdc_def::FILE_RECV_ALGO) {
-                auto &cfg_mgr = config_manager::instance();
-                ret = cfg_mgr.set_algo_bin(chunk_buf, chunk_expect_len);
-                ret = ret ?: cfg_mgr.set_algo_bin_len(chunk_expect_len);
+                ret = cfg_mgr.save_algo(chunk_buf, chunk_expect_len);
             } else if(recv_state == cdc_def::FILE_RECV_FW) {
-                // TODO: handle finished firmware file here
+                ret = cfg_mgr.save_firmware(chunk_buf, chunk_expect_len, actual_crc);
             }
-
 
             free(chunk_buf);
             chunk_buf = nullptr;
@@ -504,19 +520,39 @@ void cdc_acm::parse_chunk()
 
             if (ret != ESP_OK) {
                 ESP_LOGE(TAG, "Error occur when processing recv buffer, returned 0x%x: %s", ret, esp_err_to_name(ret));
-                send_chunk_ack(cdc_def::CHUNK_ERR_UNEXPECTED, 0);
+                send_chunk_ack(cdc_def::CHUNK_ERR_INTERNAL, ret);
             } else {
                 ESP_LOGI(TAG, "Chunk transfer done!");
                 send_chunk_ack(cdc_def::CHUNK_XFER_DONE, chunk_curr_offset);
             }
         } else {
-            ESP_LOGE(TAG, "Chunk recv CRC mismatched!!");
+            ESP_LOGE(TAG, "Chunk recv CRC mismatched, expect 0x%04x but got 0x%04x", chunk_crc, actual_crc);
+            ESP_LOG_BUFFER_HEX_LEVEL(TAG, chunk_buf, chunk_expect_len, ESP_LOG_WARN);
             send_chunk_ack(cdc_def::CHUNK_ERR_CRC32_FAIL, actual_crc);
         }
     } else {
-        ESP_LOGI(TAG, "Chunk recv - await next @ %u", chunk_curr_offset);
+        ESP_LOGI(TAG, "Chunk recv - await next @ %u, total %u", chunk_curr_offset, chunk_expect_len);
         send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, chunk_curr_offset);
     }
+}
+
+esp_err_t cdc_acm::pause_usb()
+{
+    if (!tusb_inited() || paused) return ESP_ERR_INVALID_STATE;
+    xEventGroupClearBits(rx_event, cdc_def::EVT_NEW_PACKET);
+
+    paused = true;
+    return tinyusb_cdcacm_unregister_callback(TINYUSB_CDC_ACM_0, CDC_EVENT_RX);
+}
+
+esp_err_t cdc_acm::unpause_usb()
+{
+    if (!tusb_inited() || !paused) return ESP_ERR_INVALID_STATE;
+    decoded_len = 0;
+    memset(decoded_buf, 0, CONFIG_TINYUSB_CDC_RX_BUFSIZE);
+
+    paused = false;
+    return tinyusb_cdcacm_register_callback(TINYUSB_CDC_ACM_0, CDC_EVENT_RX, serial_rx_cb);
 }
 
 
