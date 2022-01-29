@@ -1,0 +1,15 @@
+menu "Soul Injector Configuration"
+
+    config SI_DEVICE_MODEL
+        string "Device model"
+        default "Soul Injector Basic"
+        help
+            Device model name
+
+    config SI_DEVICE_BUILD
+        string "Device version"
+        default "1.0.0"
+        help
+            Device version number
+
+endmenu
