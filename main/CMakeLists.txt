@@ -23,6 +23,4 @@ idf_component_register(
             "spiffs"
             "esp-nimble-cpp"
             "tinyusb"
-        EMBED_FILES
-            "resources/stm32l0x1.bin"
 )
