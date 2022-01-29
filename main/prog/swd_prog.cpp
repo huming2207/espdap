@@ -50,7 +50,7 @@ esp_err_t swd_prog::load_flash_algorithm()
         return ESP_ERR_INVALID_STATE;
     }
 
-    if (heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT) < algo_bin_len) {
+    if (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < algo_bin_len) {
         ESP_LOGE(TAG, "Flash algo is too huge");
         return ESP_ERR_NO_MEM;
     }

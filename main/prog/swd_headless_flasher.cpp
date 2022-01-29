@@ -126,8 +126,10 @@ void swd_headless_flasher::on_verify()
     }
 
     if (swd.verify(crc, UINT32_MAX, written_len) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to verify!");
         state = flasher::ERROR;
     } else {
+        ESP_LOGI(TAG, "Firmware verified");
         state = flasher::DONE;
     }
 }
