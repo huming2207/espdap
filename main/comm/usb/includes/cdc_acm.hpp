@@ -12,12 +12,16 @@
 #define SLIP_ESC_END        0xdc
 #define SLIP_ESC_ESC        0xdd
 
-#ifndef SI_DEVICE_MODEL
-#define SI_DEVICE_MODEL "Soul Injector ENG SAMPLE FOR SG"
+#ifndef CONFIG_SI_DEVICE_MODEL
+#define SI_DEVICE_MODEL "Soul Injector"
+#else
+#define SI_DEVICE_MODEL CONFIG_SI_DEVICE_MODEL
 #endif
 
-#ifndef SI_DEVICE_BUILD
-#define SI_DEVICE_BUILD "0.0.1"
+#ifndef CONFIG_SI_DEVICE_BUILD
+#define SI_DEVICE_BUILD "0.0.0-UNKNOWN"
+#else
+#define SI_DEVICE_BUILD CONFIG_SI_DEVICE_BUILD
 #endif
 
 namespace cdc_def
