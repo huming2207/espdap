@@ -4,13 +4,14 @@ Offline firmware downloader for ARM Cortex-M, on an ESP32-S3.
 
 ## To-do list - Major building blocks
 
-- [x] Run flash algorithm
-- [x] Offline firmware flashing
-- [x] More tests
-- [x] Read verification
-- [x] Desktop app (WIP): see [huming2207/soul-composer-app](https://github.com/huming2207/soul-composer-app)
-- [x] USB CDC-ACM communication (WIP, almost there)
 - [ ] SWD on SPI Master, instead of bit-banging
+- [ ] "Unlimited" buffering (write firmware chunk to RAM cache while the target is busy committing cache to flash)
+- [x] Run flash algorithm (done in v0.0.1)
+- [x] Offline firmware flashing (done in v0.0.1)
+- [x] More (manual) tests (done in v1.0.0)
+- [x] Read verification (done in v1.0.0)
+- [x] Desktop app: see [huming2207/soul-composer-app](https://github.com/huming2207/soul-composer-app) (done in v1.0)
+- [x] USB CDC-ACM communication (done in v1.0.0)
 
 ## To-do list - other platforms except Cortex-M & SWD
 
