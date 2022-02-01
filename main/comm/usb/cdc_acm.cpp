@@ -516,6 +516,7 @@ void cdc_acm::parse_chunk()
         }
 
         fflush(file_handle);
+        file_curr_offset += chunk->len; // Add offset
     }
 
     if (file_curr_offset == file_expect_len) {
@@ -529,7 +530,7 @@ void cdc_acm::parse_chunk()
                 file_handle = nullptr;
             }
 
-            crc_match = file_utils::validate_firmware_file(config_manager::FIRMWARE_PATH, file_crc);
+            crc_match = (file_utils::validate_firmware_file(config_manager::FIRMWARE_PATH, file_crc) == ESP_OK);
         }
 
         if (crc_match) {
