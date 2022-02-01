@@ -159,11 +159,12 @@ private:
     volatile bool paused = false;
     volatile size_t decoded_len = 0;
     volatile size_t raw_len = 0;
-    size_t chunk_expect_len = 0;
-    size_t chunk_curr_offset = 0;
-    uint32_t chunk_crc = 0;
+    size_t file_expect_len = 0;
+    size_t file_curr_offset = 0;
+    uint32_t file_crc = 0;
     uint8_t *raw_buf = nullptr;
     uint8_t *decoded_buf = nullptr;
-    uint8_t *chunk_buf = nullptr;
+    uint8_t *algo_buf = nullptr;
+    FILE *file_handle = nullptr;
 };
 

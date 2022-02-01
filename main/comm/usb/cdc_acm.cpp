@@ -4,6 +4,7 @@
 
 #include "cdc_acm.hpp"
 #include "config_manager.hpp"
+#include "file_utils.hpp"
 
 
 esp_err_t cdc_acm::init()
@@ -427,10 +428,10 @@ void cdc_acm::parse_set_algo_metadata()
         return;
     }
 
-    chunk_expect_len = algo_info->len;
-    chunk_crc = algo_info->crc;
-    chunk_buf = static_cast<uint8_t *>(heap_caps_malloc(algo_info->len, MALLOC_CAP_SPIRAM));
-    memset(chunk_buf, 0, algo_info->len);
+    file_expect_len = algo_info->len;
+    file_crc = algo_info->crc;
+    algo_buf = static_cast<uint8_t *>(heap_caps_malloc(algo_info->len, MALLOC_CAP_SPIRAM));
+    memset(algo_buf, 0, algo_info->len);
     recv_state = cdc_def::FILE_RECV_ALGO;
     send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, 0);
 }
@@ -450,10 +451,14 @@ void cdc_acm::parse_set_fw_metadata()
         return;
     }
 
-    chunk_expect_len = fw_info->len;
-    chunk_crc = fw_info->crc;
-    chunk_buf = static_cast<uint8_t *>(heap_caps_malloc(fw_info->len, MALLOC_CAP_SPIRAM));
-    memset(chunk_buf, 0, fw_info->len);
+    file_expect_len = fw_info->len;
+    file_crc = fw_info->crc;
+    file_handle = fopen(config_manager::FIRMWARE_PATH, "wb");
+    if (file_handle == nullptr) {
+        ESP_LOGE(TAG, "Failed to open firmware path");
+        return;
+    }
+
     recv_state = cdc_def::FILE_RECV_FW;
     send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, 0);
 }
@@ -465,12 +470,12 @@ void cdc_acm::parse_chunk()
     // Scenario 0: if len == 0 then that's force abort, discard the buffer and set back the states
     if (chunk->len == 0) {
         ESP_LOGE(TAG, "Zero len chunk - force abort!");
-        chunk_expect_len = 0;
-        chunk_curr_offset = 0;
-        chunk_crc = 0;
-        if (chunk_buf != nullptr) {
-            free(chunk_buf);
-            chunk_buf = nullptr;
+        file_expect_len = 0;
+        file_curr_offset = 0;
+        file_crc = 0;
+        if (algo_buf != nullptr) {
+            free(algo_buf);
+            algo_buf = nullptr;
         }
         recv_state = cdc_def::FILE_RECV_NONE;
         send_chunk_ack(cdc_def::CHUNK_ERR_ABORT_REQUESTED, 0);
@@ -478,44 +483,74 @@ void cdc_acm::parse_chunk()
     }
 
     // Scenario 1: if len is too long, reject & abort.
-    if (chunk->len + chunk_curr_offset > chunk_expect_len) {
-        ESP_LOGE(TAG, "Chunk recv buffer is full, incoming %u while expect %u only", chunk->len + chunk_curr_offset, chunk_expect_len);
-        chunk_expect_len = 0;
-        chunk_curr_offset = 0;
-        chunk_crc = 0;
-        if (chunk_buf != nullptr) {
-            free(chunk_buf);
-            chunk_buf = nullptr;
+    if (chunk->len + file_curr_offset > file_expect_len) {
+        ESP_LOGE(TAG, "Chunk recv buffer is full, incoming %u while expect %u only", chunk->len + file_curr_offset, file_expect_len);
+        file_expect_len = 0;
+        file_curr_offset = 0;
+        file_crc = 0;
+        if (algo_buf != nullptr) {
+            free(algo_buf);
+            algo_buf = nullptr;
         }
+
+        if (file_handle != nullptr) {
+            fclose(file_handle);
+            file_handle = nullptr;
+        }
+
         recv_state = cdc_def::FILE_RECV_NONE;
-        send_chunk_ack(cdc_def::CHUNK_ERR_NAME_TOO_LONG, chunk->len + chunk_curr_offset);
+        send_chunk_ack(cdc_def::CHUNK_ERR_NAME_TOO_LONG, chunk->len + file_curr_offset);
         return;
     }
 
     // Scenario 2: Normal recv
-    ESP_LOGW(TAG, "Copy to: %p; len: %u, off: %u, base: %p", chunk_buf + chunk_curr_offset, chunk->len, chunk_curr_offset, chunk_buf);
-    memcpy(chunk_buf + chunk_curr_offset, chunk->buf, chunk->len);
-    chunk_curr_offset += chunk->len; // Add offset
+    if (recv_state == cdc_def::FILE_RECV_ALGO) {
+        ESP_LOGD(TAG, "Copy to: %p; len: %u, off: %u, base: %p", algo_buf + file_curr_offset, chunk->len, file_curr_offset, algo_buf);
+        memcpy(algo_buf + file_curr_offset, chunk->buf, chunk->len);
+        file_curr_offset += chunk->len; // Add offset
+    } else if(recv_state == cdc_def::FILE_RECV_FW) {
+        if (fwrite(chunk->buf, 1, chunk->len, file_handle) < chunk->len) {
+            ESP_LOGE(TAG, "Error occur when processing recv buffer - write failed");
+            send_chunk_ack(cdc_def::CHUNK_ERR_INTERNAL, ESP_ERR_NO_MEM);
+            return;
+        }
 
-    if (chunk_curr_offset == chunk_expect_len) {
-        // Check full file CRC here
-        auto actual_crc = esp_crc32_le(0, chunk_buf, chunk_expect_len);
-        if (actual_crc == chunk_crc) {
-            ESP_LOGI(TAG, "Chunk recv successful, got %u bytes", chunk_expect_len);
+        fflush(file_handle);
+    }
+
+    if (file_curr_offset == file_expect_len) {
+        bool crc_match = false;
+        if (recv_state == cdc_def::FILE_RECV_ALGO) {
+            crc_match = (esp_crc32_le(0, algo_buf, file_expect_len) == file_crc);
+        } else if(recv_state == cdc_def::FILE_RECV_FW) {
+            if (file_handle != nullptr) {
+                fflush(file_handle);
+                fclose(file_handle);
+                file_handle = nullptr;
+            }
+
+            crc_match = file_utils::validate_firmware_file(config_manager::FIRMWARE_PATH, file_crc);
+        }
+
+        if (crc_match) {
+            ESP_LOGI(TAG, "Chunk recv successful, got %u bytes", file_expect_len);
 
             auto ret = ESP_OK;
             auto &cfg_mgr = config_manager::instance();
             if (recv_state == cdc_def::FILE_RECV_ALGO) {
-                ret = cfg_mgr.save_algo(chunk_buf, chunk_expect_len);
+                ret = cfg_mgr.save_algo(algo_buf, file_expect_len);
+
+                if (algo_buf != nullptr) {
+                    free(algo_buf);
+                    algo_buf = nullptr;
+                }
             } else if(recv_state == cdc_def::FILE_RECV_FW) {
-                ret = cfg_mgr.save_firmware(chunk_buf, chunk_expect_len, actual_crc);
+                ret = cfg_mgr.set_fw_crc(file_crc);
             }
 
-            free(chunk_buf);
-            chunk_buf = nullptr;
-            chunk_expect_len = 0;
-            chunk_curr_offset = 0;
-            chunk_crc = 0;
+            file_expect_len = 0;
+            file_curr_offset = 0;
+            file_crc = 0;
             recv_state = cdc_def::FILE_RECV_NONE;
 
             if (ret != ESP_OK) {
@@ -523,16 +558,15 @@ void cdc_acm::parse_chunk()
                 send_chunk_ack(cdc_def::CHUNK_ERR_INTERNAL, ret);
             } else {
                 ESP_LOGI(TAG, "Chunk transfer done!");
-                send_chunk_ack(cdc_def::CHUNK_XFER_DONE, chunk_curr_offset);
+                send_chunk_ack(cdc_def::CHUNK_XFER_DONE, file_curr_offset);
             }
         } else {
-            ESP_LOGE(TAG, "Chunk recv CRC mismatched, expect 0x%04x but got 0x%04x", chunk_crc, actual_crc);
-            ESP_LOG_BUFFER_HEX_LEVEL(TAG, chunk_buf, chunk_expect_len, ESP_LOG_WARN);
-            send_chunk_ack(cdc_def::CHUNK_ERR_CRC32_FAIL, actual_crc);
+            ESP_LOGE(TAG, "Chunk recv CRC mismatched!");
+            send_chunk_ack(cdc_def::CHUNK_ERR_CRC32_FAIL, 0);
         }
     } else {
-        ESP_LOGI(TAG, "Chunk recv - await next @ %u, total %u", chunk_curr_offset, chunk_expect_len);
-        send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, chunk_curr_offset);
+        ESP_LOGI(TAG, "Chunk recv - await next @ %u, total %u", file_curr_offset, file_expect_len);
+        send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, file_curr_offset);
     }
 }
 
