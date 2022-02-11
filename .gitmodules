@@ -4,3 +4,6 @@
 [submodule "components/esp-nimble-cpp"]
 	path = components/esp-nimble-cpp
 	url = git@github.com:huming2207/esp-nimble-cpp.git
+[submodule "wamr"]
+	path = wamr
+	url = https://github.com/bytecodealliance/wasm-micro-runtime.git
