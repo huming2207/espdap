@@ -5,4 +5,9 @@
 cmake_minimum_required(VERSION 3.5)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
+set (COMPONENTS ${IDF_TARGET} main freertos esptool_py wamr)
+set (WAMR_BUILD_LIBC_WASI 1)
+list(APPEND EXTRA_COMPONENT_DIRS "./wamr/build-scripts/esp-idf")
+
 project(soulinjector)

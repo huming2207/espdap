@@ -23,4 +23,5 @@ idf_component_register(
             "spiffs"
             "esp-nimble-cpp"
             "tinyusb"
+            "wamr"
 )
