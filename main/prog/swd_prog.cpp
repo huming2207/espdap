@@ -50,12 +50,12 @@ esp_err_t swd_prog::load_flash_algorithm()
         return ESP_ERR_INVALID_STATE;
     }
 
-    if (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < algo_bin_len) {
+    if (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) < algo_bin_len) {
         ESP_LOGE(TAG, "Flash algo is too huge");
         return ESP_ERR_NO_MEM;
     }
 
-    auto *algo_bin = static_cast<uint8_t *>(heap_caps_malloc(algo_bin_len, MALLOC_CAP_SPIRAM));
+    auto *algo_bin = static_cast<uint8_t *>(heap_caps_malloc(algo_bin_len, MALLOC_CAP_INTERNAL));
     if (algo_bin == nullptr) {
         ESP_LOGE(TAG, "Failed to allocate flash algo bin buffer");
         return ESP_ERR_NO_MEM;

@@ -61,13 +61,13 @@ esp_err_t cdc_acm::init()
 
     xTaskCreatePinnedToCore(rx_handler_task, "cdc_rx", 16384, this, tskIDLE_PRIORITY + 1, nullptr, 0);
 
-    decoded_buf = static_cast<uint8_t *>(heap_caps_malloc(CONFIG_TINYUSB_CDC_RX_BUFSIZE, MALLOC_CAP_SPIRAM));
+    decoded_buf = static_cast<uint8_t *>(heap_caps_malloc(CONFIG_TINYUSB_CDC_RX_BUFSIZE, MALLOC_CAP_INTERNAL));
     if (decoded_buf == nullptr) {
         ESP_LOGE(TAG, "Failed to allocate SLIP decode buf");
         return ESP_ERR_NO_MEM;
     }
 
-    raw_buf = static_cast<uint8_t *>(heap_caps_malloc(CONFIG_TINYUSB_CDC_RX_BUFSIZE, MALLOC_CAP_SPIRAM));
+    raw_buf = static_cast<uint8_t *>(heap_caps_malloc(CONFIG_TINYUSB_CDC_RX_BUFSIZE, MALLOC_CAP_INTERNAL));
     if (raw_buf == nullptr) {
         ESP_LOGE(TAG, "Failed to allocate SLIP raw buf");
         free(decoded_buf);
@@ -422,15 +422,15 @@ void cdc_acm::parse_get_algo_info()
 void cdc_acm::parse_set_algo_metadata()
 {
     auto *algo_info = (cdc_def::algo_info *)(decoded_buf + sizeof(cdc_def::header));
-    if (algo_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < algo_info->len) {
-        ESP_LOGE(TAG, "Flash algo metadata len too long: %u, free block: %u", algo_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+    if (algo_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) < algo_info->len) {
+        ESP_LOGE(TAG, "Flash algo metadata len too long: %u, free block: %u", algo_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
         send_nack();
         return;
     }
 
     file_expect_len = algo_info->len;
     file_crc = algo_info->crc;
-    algo_buf = static_cast<uint8_t *>(heap_caps_malloc(algo_info->len, MALLOC_CAP_SPIRAM));
+    algo_buf = static_cast<uint8_t *>(heap_caps_malloc(algo_info->len, MALLOC_CAP_INTERNAL));
     memset(algo_buf, 0, algo_info->len);
     recv_state = cdc_def::FILE_RECV_ALGO;
     send_chunk_ack(cdc_def::CHUNK_XFER_NEXT, 0);
@@ -444,9 +444,9 @@ void cdc_acm::parse_get_fw_info()
 void cdc_acm::parse_set_fw_metadata()
 {
     auto *fw_info = (cdc_def::fw_info *)(decoded_buf + sizeof(cdc_def::header));
-    if (fw_info->len > CFG_MGR_FW_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < fw_info->len) {
-        ESP_LOGE(TAG, "Firmware metadata len too long: %u, free heap: %u", fw_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
-        heap_caps_dump(MALLOC_CAP_SPIRAM);
+    if (fw_info->len > CFG_MGR_FW_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) < fw_info->len) {
+        ESP_LOGE(TAG, "Firmware metadata len too long: %u, free heap: %u", fw_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+        heap_caps_dump(MALLOC_CAP_INTERNAL);
         send_nack();
         return;
     }
