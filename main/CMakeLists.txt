@@ -15,8 +15,12 @@ idf_component_register(
             "comm/usb/cdc_acm.cpp" "comm/usb/includes/cdc_acm.hpp"
             "misc/includes/soul_nvs.hpp"
             "driver/includes/button_monitor.hpp"
+            "wasm/wasm_manager.cpp" "wasm/includes/wasm_manager.hpp"
+            "wasm/includes/wasm_module.hpp"
         INCLUDE_DIRS
-            "." "misc/includes" "prog/includes" "external/includes" "comm/ble/includes" "comm/usb/includes" "driver/includes"
+            "." "misc/includes" "prog/includes" "external/includes"
+            "comm/ble/includes" "comm/usb/includes" "driver/includes"
+            "wasm/includes"
         PRIV_REQUIRES
             "daplink-esp"
             "mbedtls"
@@ -24,4 +28,6 @@ idf_component_register(
             "esp-nimble-cpp"
             "tinyusb"
             "wamr"
+        EMBED_FILES
+            test_blob/wasi.wasm
 )

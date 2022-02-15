@@ -84,3 +84,4 @@ Temporary Items
 
 # Some sensitive stuff
 main/fs_sample/*.bin
+main/test_blob/
