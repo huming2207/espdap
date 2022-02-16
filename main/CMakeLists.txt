@@ -17,6 +17,7 @@ idf_component_register(
             "driver/includes/button_monitor.hpp"
             "wasm/wasm_manager.cpp" "wasm/includes/wasm_manager.hpp"
             "wasm/includes/wasm_module.hpp"
+            "wasm/swd_module.cpp" "wasm/includes/swd_module.hpp"
         INCLUDE_DIRS
             "." "misc/includes" "prog/includes" "external/includes"
             "comm/ble/includes" "comm/usb/includes" "driver/includes"
