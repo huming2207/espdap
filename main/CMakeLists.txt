@@ -18,6 +18,7 @@ idf_component_register(
             "wasm/wasm_manager.cpp" "wasm/includes/wasm_manager.hpp"
             "wasm/includes/wasm_module.hpp"
             "wasm/swd_module.cpp" "wasm/includes/swd_module.hpp"
+            "wasm/rgb_led_module.cpp" "wasm/includes/rgb_led_module.hpp"
         INCLUDE_DIRS
             "." "misc/includes" "prog/includes" "external/includes"
             "comm/ble/includes" "comm/usb/includes" "driver/includes"
