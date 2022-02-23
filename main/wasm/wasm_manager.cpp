@@ -61,13 +61,6 @@ esp_err_t wasm_manager::load(const uint8_t *buf, size_t len)
         return ESP_ERR_INVALID_STATE;
     }
 
-    ESP_LOGI(TAG, "Instantiate done");
-
-
-    ESP_LOGI(TAG, "Exec main");
-
-
-
     ESP_LOGI(TAG, "All done!");
     return ESP_OK;
 }
