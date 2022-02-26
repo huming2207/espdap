@@ -13,12 +13,19 @@ esp_err_t config_manager::init()
     spiffs_config.base_path = BASE_PATH;
     spiffs_config.format_if_mount_failed = false;
     spiffs_config.max_files = 10;
-    spiffs_config.partition_label = nullptr;
+    spiffs_config.partition_label = SPIFFS_PART_LABEL;
 
     auto ret = esp_vfs_spiffs_register(&spiffs_config);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize SPIFFS: %s", esp_err_to_name(ret));
-        return ret;
+        ESP_LOGW(TAG, "Storage partition is corrupted or unformatted, formatting now...");
+        ret = esp_spiffs_format(SPIFFS_PART_LABEL);
+        ret = ret ?: esp_vfs_spiffs_register(&spiffs_config);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to initialize SPIFFS: %s", esp_err_to_name(ret));
+            return ret;
+        } else {
+            ESP_LOGI(TAG, "Storage filesystem formatted & mounted to %s", BASE_PATH);
+        }
     } else {
         ESP_LOGI(TAG, "Storage filesystem mounted to %s", BASE_PATH);
     }
