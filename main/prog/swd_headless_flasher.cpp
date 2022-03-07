@@ -1,5 +1,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <driver/gpio.h>
 #include <esp_err.h>
 #include <esp_log.h>
 #include <led_ctrl.hpp>
@@ -10,7 +11,25 @@
 
 esp_err_t swd_headless_flasher::init()
 {
-    auto ret = led.init(GPIO_NUM_48);
+    flasher_evt = xEventGroupCreate();
+    if (flasher_evt == nullptr) {
+        ESP_LOGE(TAG, "Failed to create flasher event group!");
+        return ESP_ERR_NO_MEM;
+    }
+
+    xTaskCreate(button_intr_handler, "button_intr", 3072, this, tskIDLE_PRIORITY + 1, nullptr);
+
+    auto ret = gpio_install_isr_service(0);
+    ret = ret ?: gpio_set_intr_type(GPIO_NUM_0, GPIO_INTR_NEGEDGE);
+    ret = ret ?: gpio_intr_enable(GPIO_NUM_0);
+    ret = ret ?: gpio_isr_handler_add(GPIO_NUM_0, button_isr, this);
+
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set up button GPIO");
+        return ret;
+    }
+
+    ret = led.init(GPIO_NUM_48);
     led.set_color(60,0,0,30);
 
     ret = ret ?: cfg_manager.init();
@@ -131,5 +150,37 @@ void swd_headless_flasher::on_verify()
     } else {
         ESP_LOGI(TAG, "Firmware verified");
         state = flasher::DONE;
+    }
+}
+
+void swd_headless_flasher::button_isr(void *_ctx)
+{
+    auto *ctx = static_cast<swd_headless_flasher *>(_ctx);
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t ret = xEventGroupSetBitsFromISR(ctx->flasher_evt, flasher::CLEAR_BUTTON_PRESSED, &xHigherPriorityTaskWoken);
+    if (ret == pdPASS) {
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+}
+
+void swd_headless_flasher::button_intr_handler(void *_ctx)
+{
+    auto *ctx = static_cast<swd_headless_flasher *>(_ctx);
+    while (true) {
+        EventBits_t bits = xEventGroupWaitBits(ctx->flasher_evt,
+                                               flasher::CLEAR_BUTTON_PRESSED, // Wait for button pressed bit
+                                               pdTRUE, pdTRUE,       // Clear on exit, wait for all
+                                               portMAX_DELAY);         // Timeout
+
+
+        if((bits & flasher::CLEAR_BUTTON_PRESSED) != 0) {
+            ESP_LOGI(TAG, "Button pressed!");
+            if (ctx->state == flasher::DONE || ctx->state == flasher::ERROR) {
+                ctx->state = flasher::DETECT;
+            }
+        } else {
+            vTaskDelete(nullptr);
+            return; // Won't happen
+        }
     }
 }

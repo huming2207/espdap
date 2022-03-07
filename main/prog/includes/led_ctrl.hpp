@@ -20,7 +20,7 @@ private:
     led_ctrl() = default;
 
 public:
-    esp_err_t init(gpio_num_t pin = GPIO_NUM_18) const
+    esp_err_t init(gpio_num_t pin = GPIO_NUM_48) const
     {
         rmt_config_t config;
         config.rmt_mode = RMT_MODE_TX;

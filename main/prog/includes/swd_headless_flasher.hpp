@@ -1,5 +1,8 @@
 #pragma once
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/event_groups.h>
+
 #include <config_manager.hpp>
 #include <led_ctrl.hpp>
 #include <esp_err.h>
@@ -16,6 +19,10 @@ namespace flasher
         ERROR = 3,
         VERIFY = 4,
         DONE = 5,
+    };
+
+    enum event_bit : uint32_t {
+        CLEAR_BUTTON_PRESSED = (1U << 0),
     };
 }
 
@@ -38,7 +45,8 @@ private:
     cdc_acm &cdc = cdc_acm::instance();
     led_ctrl &led = led_ctrl::instance();
     swd_prog &swd = swd_prog::instance();
-    flasher::pg_state state = flasher::DETECT;
+    EventGroupHandle_t flasher_evt = {};
+    volatile flasher::pg_state state = flasher::DETECT;
 
     static const constexpr char *TAG = "swd_hdls_flr";
 
@@ -52,5 +60,8 @@ private:
     void on_program();
     void on_verify();
     void on_done();
+
+    static void button_isr(void *_ctx);
+    static void button_intr_handler(void *_ctx);
 };
 
