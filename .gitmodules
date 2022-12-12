@@ -1,6 +1,3 @@
 [submodule "components/daplink-esp"]
 	path = components/daplink-esp
 	url = git@github.com:huming2207/swd-esp.git
-[submodule "components/esp-nimble-cpp"]
-	path = components/esp-nimble-cpp
-	url = git@github.com:huming2207/esp-nimble-cpp.git
