@@ -83,7 +83,7 @@ esp_err_t swd_prog::load_flash_algorithm()
 
 esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
 {
-    ESP_LOGI(TAG, "Running init, load_addr: 0x%x, stack_ptr: 0x%x, static_base: 0x%x", syscall.breakpoint, syscall.stack_pointer, syscall.static_base);
+    ESP_LOGI(TAG, "Running init, load_addr: 0x%lx, stack_ptr: 0x%lx, static_base: 0x%lx", syscall.breakpoint, syscall.stack_pointer, syscall.static_base);
     uint32_t retry_cnt = 3;
     while (retry_cnt > 0) {
         if (load_flash_algorithm() != ESP_OK) {
@@ -117,7 +117,7 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
             return ESP_ERR_INVALID_STATE;
         }
 
-        ESP_LOGD(TAG, "Flash start addr = 0x%x, pc_init = 0x%x", flash_start_addr, pc_init);
+        ESP_LOGD(TAG, "Flash start addr = 0x%lx, pc_init = 0x%lx", flash_start_addr, pc_init);
 
         ret = swd_flash_syscall_exec(
                 &syscall,
@@ -243,7 +243,7 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t end_addr)
     }
 
     uint32_t sector_cnt = (end_addr - start_addr) / flash_sector_size;
-    ESP_LOGI(TAG, "End addr 0x%x, start addr 0x%x, sector size %u", end_addr, start_addr, flash_sector_size);
+    ESP_LOGI(TAG, "End addr 0x%lx, start addr 0x%lx, sector size %lu", end_addr, start_addr, flash_sector_size);
     if ((end_addr - start_addr) % flash_sector_size != 0 || sector_cnt < 1) {
         ESP_LOGE(TAG, "Misaligned sector address");
         return ESP_ERR_INVALID_ARG;
@@ -345,7 +345,7 @@ esp_err_t swd_prog::program_page(const uint8_t *buf, size_t len, uint32_t start_
             return ESP_ERR_INVALID_STATE;
         }
 
-        ESP_LOGI(TAG, "Writing page 0x%x, size %u", 0x08000000 + (page_idx * 1024), write_size);
+        ESP_LOGI(TAG, "Writing page 0x%lx, size %lu", 0x08000000 + (page_idx * 1024), write_size);
         swd_ret = swd_flash_syscall_exec(
                 &syscall,
                 func_offset + pc_program_page, // ErasePage PC = 305
@@ -444,7 +444,7 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t *len_written, uint32
         uint32_t write_size = std::min(page_size, remain_len);
         size_t read_len = fread(buf, 1, write_size, file);
         if (read_len != write_size) {
-            ESP_LOGW(TAG, "Trying to read %u bytes but got only %u bytes", write_size, read_len);
+            ESP_LOGW(TAG, "Trying to read %lu bytes but got only %u bytes", write_size, read_len);
             write_size = read_len;
         }
 
@@ -456,7 +456,7 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t *len_written, uint32
             return ESP_ERR_INVALID_STATE;
         }
 
-        ESP_LOGD(TAG, "Writing page 0x%x, size %u", addr_offset + (page_idx * page_size), write_size);
+        ESP_LOGD(TAG, "Writing page 0x%lx, size %lu", addr_offset + (page_idx * page_size), write_size);
         swd_ret = swd_flash_syscall_exec(
                 &syscall,
                 func_offset + pc_program_page, // ErasePage PC = 305
@@ -517,7 +517,7 @@ esp_err_t swd_prog::verify(uint32_t expected_crc, uint32_t start_addr, size_t le
 
     while(remain_len > 0) {
         uint8_t buf[1024] = { 0 };
-        uint32_t read_len = std::min((uint32_t)(sizeof(buf)), remain_len);
+        uint32_t read_len = std::min(sizeof(buf), remain_len);
         swd_ret = swd_read_memory((actual_read_addr + offset), buf, read_len);
         if (swd_ret < 1) {
             ESP_LOGE(TAG, "Failed when reading flash");
@@ -530,10 +530,10 @@ esp_err_t swd_prog::verify(uint32_t expected_crc, uint32_t start_addr, size_t le
     }
 
     if (expected_crc != actual_crc) {
-        ESP_LOGE(TAG, "CRC mismatched, expected 0x%x, actual 0x%x", expected_crc, actual_crc);
+        ESP_LOGE(TAG, "CRC mismatched, expected 0x%lx, actual 0x%lx", expected_crc, actual_crc);
         return ESP_ERR_INVALID_CRC;
     } else {
-        ESP_LOGI(TAG, "CRC matched, expected 0x%x, actual 0x%x", expected_crc, actual_crc);
+        ESP_LOGI(TAG, "CRC matched, expected 0x%lx, actual 0x%lx", expected_crc, actual_crc);
     }
 
     return ESP_OK;
