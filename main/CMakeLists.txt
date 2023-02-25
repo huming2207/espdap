@@ -20,4 +20,5 @@ idf_component_register(
             "efuse"
             "nvs_flash"
             "driver"
+            "esp_timer"
 )
