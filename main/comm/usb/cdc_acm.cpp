@@ -19,9 +19,8 @@ esp_err_t cdc_acm::init()
             "Jackson Hu", // 1: Manufacturer
             "Soul Injector Programmer",      // 2: Product
             sn_str,       // 3: Serials, should use chip ID
-            "Soul Injector Programmer",          // 4: CDC Interface
+            "Soul Injector v1",          // 4: CDC Interface
     };
-    static tusb_desc_device_t desc_device = {};
 
     tinyusb_config_t tusb_cfg = {}; // the configuration using default values
     tusb_cfg.string_descriptor = (const char **)desc_str;
