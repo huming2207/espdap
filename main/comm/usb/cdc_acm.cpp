@@ -11,21 +11,22 @@
 esp_err_t cdc_acm::init()
 {
     static char sn_str[32] = {};
-    static const char lang[2] = {0x09, 0x04};
-    static tusb_desc_strarray_device_t desc_str = {
-            // array of pointer to string descriptors
+    static char lang[2] = {0x09, 0x04};
+
+
+    static char *desc_str[5] = {
             lang,                // 0: is supported language is English (0x0409)
             "Jackson Hu", // 1: Manufacturer
             "Soul Injector Programmer",      // 2: Product
             sn_str,       // 3: Serials, should use chip ID
             "Soul Injector Programmer",          // 4: CDC Interface
-            "",
-            "",
     };
     static tusb_desc_device_t desc_device = {};
 
     tinyusb_config_t tusb_cfg = {}; // the configuration using default values
-    tusb_cfg.string_descriptor = desc_str;
+    tusb_cfg.string_descriptor = (const char **)desc_str;
+    tusb_cfg.device_descriptor = nullptr;
+    tusb_cfg.external_phy = false;
 
     uint8_t sn_buf[16] = { 0 };
     esp_efuse_mac_get_default(sn_buf);
