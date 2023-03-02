@@ -166,7 +166,7 @@ esp_err_t config_manager::set_algo_bin(const uint8_t *algo, size_t len)
 
 esp_err_t config_manager::set_algo_bin_len(uint32_t value)
 {
-    ESP_LOGI(TAG, "New algo len: %u", value);
+    ESP_LOGI(TAG, "New algo len: %lu", value);
     auto ret = nvs->set_item("algo_len", value);
     ret = ret ?: nvs->commit();
     return ret;
@@ -174,91 +174,91 @@ esp_err_t config_manager::set_algo_bin_len(uint32_t value)
 
 esp_err_t config_manager::set_ram_size_byte(uint32_t value)
 {
-    ESP_LOGI(TAG, "New ram_size value: %u", value);
+    ESP_LOGI(TAG, "New ram_size value: %lu", value);
     return nvs->set_item("ram_size", value);
 }
 
 esp_err_t config_manager::set_flash_size_byte(uint32_t value)
 {
-    ESP_LOGI(TAG, "New flash_size value: %u", value);
+    ESP_LOGI(TAG, "New flash_size value: %lu", value);
     return nvs->set_item("flash_size", value);
 }
 
 esp_err_t config_manager::set_pc_init(uint32_t value)
 {
-    ESP_LOGI(TAG, "New pc_init value: 0x%08x", value);
+    ESP_LOGI(TAG, "New pc_init value: 0x%08lx", value);
     return nvs->set_item("pc_init", value);
 }
 
 esp_err_t config_manager::set_pc_uninit(uint32_t value)
 {
-    ESP_LOGI(TAG, "New pc_uninit value: 0x%08x", value);
+    ESP_LOGI(TAG, "New pc_uninit value: 0x%08lx", value);
     return nvs->set_item("pc_uninit", value);
 }
 
 esp_err_t config_manager::set_pc_program_page(uint32_t value)
 {
-    ESP_LOGI(TAG, "New pc_prg_page value: 0x%08x", value);
+    ESP_LOGI(TAG, "New pc_prg_page value: 0x%08lx", value);
     return nvs->set_item("pc_prog_page", value);
 }
 
 esp_err_t config_manager::set_pc_erase_sector(uint32_t value)
 {
-    ESP_LOGI(TAG, "New pc_erase_sector value: 0x%08x", value);
+    ESP_LOGI(TAG, "New pc_erase_sector value: 0x%08lx", value);
     return nvs->set_item("pc_erase_sector", value);
 }
 
 esp_err_t config_manager::set_pc_erase_all(uint32_t value)
 {
-    ESP_LOGI(TAG, "New pc_erase_all value: 0x%08x", value);
+    ESP_LOGI(TAG, "New pc_erase_all value: 0x%08lx", value);
     return nvs->set_item("pc_erase_all", value);
 }
 
 esp_err_t config_manager::set_data_section_offset(uint32_t value)
 {
-    ESP_LOGI(TAG, "New data section offset value: 0x%x", value);
+    ESP_LOGI(TAG, "New data section offset value: 0x%lx", value);
     return nvs->set_item("data_sc_offset", value);
 }
 
 esp_err_t config_manager::set_flash_start_addr(uint32_t value)
 {
-    ESP_LOGI(TAG, "New flash_start_addr value: 0x%08x", value);
+    ESP_LOGI(TAG, "New flash_start_addr value: 0x%08lx", value);
     return nvs->set_item("fl_start_addr", value);
 }
 
 esp_err_t config_manager::set_flash_end_addr(uint32_t value)
 {
-    ESP_LOGI(TAG, "New flash_end_addr value: 0x%08x", value);
+    ESP_LOGI(TAG, "New flash_end_addr value: 0x%08lx", value);
     return nvs->set_item("fl_end_addr", value);
 }
 
 esp_err_t config_manager::set_page_size(uint32_t value)
 {
-    ESP_LOGI(TAG, "New page_size value: %u", value);
+    ESP_LOGI(TAG, "New page_size value: %lu", value);
     return nvs->set_item("flash_page_size", value);
 }
 
 esp_err_t config_manager::set_erased_byte_val(uint32_t value)
 {
-    ESP_LOGI(TAG, "New erased_byte value: %u", value);
+    ESP_LOGI(TAG, "New erased_byte value: %lu", value);
     return nvs->set_item("erased_byte", value);
 }
 
 esp_err_t config_manager::set_program_page_timeout(uint32_t value)
 {
-    ESP_LOGI(TAG, "New prg_page_timeout value: %u", value);
+    ESP_LOGI(TAG, "New prg_page_timeout value: %lu", value);
     return nvs->set_item("prog_timeout", value);
 }
 
 esp_err_t config_manager::set_erase_sector_timeout(uint32_t value)
 {
-    ESP_LOGI(TAG, "New erase_sector_timeout value: %u", value);
+    ESP_LOGI(TAG, "New erase_sector_timeout value: %lu", value);
     return nvs->set_item("erase_timeout", value);
 }
 
 esp_err_t config_manager::set_sector_size(uint32_t value)
 {
-    ESP_LOGI(TAG, "New erased_byte value: %u", value);
+    ESP_LOGI(TAG, "New erased_byte value: %lu", value);
     return nvs->set_item("flash_sector_sz", value);
 }
 
@@ -278,7 +278,7 @@ esp_err_t config_manager::save_cfg(const uint8_t *buf, size_t len)
 
     // Magic is "JHSI" (Jackson Hu's Soul Injector firmware programmer)
     if (algo_cfg->magic != CFG_MGR_PKT_MAGIC) {
-        ESP_LOGE(TAG, "Invalid magic, expect 0x4a485349 got 0x%x", algo_cfg->magic);
+        ESP_LOGE(TAG, "Invalid magic, expect 0x4a485349 got 0x%lx", algo_cfg->magic);
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -421,7 +421,7 @@ esp_err_t config_manager::read_algo_info(uint8_t *out, size_t len) const
             info->algo_len = 0;
             info->algo_crc = 0;
 
-            ESP_LOGE(TAG, "Memory alloc %u bytes failed when reading algo", algo_len);
+            ESP_LOGE(TAG, "Memory alloc %lu bytes failed when reading algo", algo_len);
             return ESP_ERR_NO_MEM;
         }
 

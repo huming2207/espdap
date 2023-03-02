@@ -38,17 +38,17 @@ public:
         uint32_t actual_crc = 0;
         while(len > 0) {
             uint8_t buf[1024] = { 0 };
-            auto read_len = std::min(len, (uint32_t)sizeof(buf));
+            auto read_len = std::min(len, sizeof(buf));
             auto actual_read = fread(buf, 1, read_len, file);
             actual_crc = esp_crc32_le(actual_crc, buf, actual_read);
             len -= actual_read;
         }
 
         if (actual_crc != crc) {
-            ESP_LOGE(TAG, "CRC mismatch for firmware %s, expected 0x%x, actual 0x%x", path, crc, actual_crc);
+            ESP_LOGE(TAG, "CRC mismatch for firmware %s, expected 0x%lx, actual 0x%lx", path, crc, actual_crc);
             return ESP_ERR_INVALID_CRC;
         } else {
-            ESP_LOGI(TAG, "CRC matched for firmware %s, expected 0x%x, actual 0x%x", path, crc, actual_crc);
+            ESP_LOGI(TAG, "CRC matched for firmware %s, expected 0x%lx, actual 0x%lx", path, crc, actual_crc);
         }
 
         return ESP_OK;
