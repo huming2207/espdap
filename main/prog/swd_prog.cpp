@@ -83,7 +83,7 @@ esp_err_t swd_prog::load_flash_algorithm()
 
 esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
 {
-    ESP_LOGI(TAG, "Running init, load_addr: 0x%x, stack_ptr: 0x%x, static_base: 0x%x", syscall.breakpoint, syscall.stack_pointer, syscall.static_base);
+    ESP_LOGI(TAG, "Running init, load_addr: 0x%lx, stack_ptr: 0x%lx, static_base: 0x%lx", syscall.breakpoint, syscall.stack_pointer, syscall.static_base);
     uint32_t retry_cnt = 3;
     while (retry_cnt > 0) {
         if (load_flash_algorithm() != ESP_OK) {
@@ -117,7 +117,7 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
             return ESP_ERR_INVALID_STATE;
         }
 
-        ESP_LOGD(TAG, "Flash start addr = 0x%x, pc_init = 0x%x", flash_start_addr, pc_init);
+        ESP_LOGI(TAG, "Flash start addr = 0x%lx, pc_init = 0x%lx", flash_start_addr, func_offset + pc_init);
 
         ret = swd_flash_syscall_exec(
                 &syscall,
@@ -219,12 +219,35 @@ esp_err_t swd_prog::init(config_manager *_algo, uint32_t _ram_addr, uint32_t _st
         return ESP_ERR_INVALID_STATE;
     }
 
-    // TODO: load from JSON
-    code_start = ram_addr + stack_size; // Stack size (default) = 512 -> offset = 0x20000200
-    func_offset = code_start + sizeof(header_blob);
+    // We are using probe-rs style flash algorithm
+    uint32_t offset = 0;
+    offset += sizeof(header_blob);
+
+    code_start = ram_addr; // 0x20000020?
+
+    uint32_t algo_bin_len = 0;
+    if (fw_mgr->get_algo_bin_len(algo_bin_len) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read algo bin len");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    offset += algo_bin_len;
+    stack_offset = ram_addr + offset + stack_size + sizeof(header_blob);
+
+    uint32_t data_section_offset = 0;
+    if (fw_mgr->get_data_section_offset(data_section_offset) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read data section offset");
+        return ESP_ERR_INVALID_STATE;
+    }
+
     syscall.breakpoint = code_start + 1; // This is ARM
-    syscall.static_base = 512 + code_start + 0x20; // Length = 512, header = 32 bytes
-    syscall.stack_pointer = code_start;
+    syscall.static_base = data_section_offset + sizeof(header_blob); // Length = 512, header = 32 bytes
+    syscall.stack_pointer = stack_offset;
+
+    func_offset = ram_addr + sizeof(header_blob);
+
+    ESP_LOGI(TAG, "Addr: code_start: 0x%08lx; stack_offset: 0x%08lx; data_section: 0x%08lx", code_start, stack_offset, data_section_offset);
+    ESP_LOGI(TAG, "Addr: stack: 0x%08lx; bkpt: 0x%08lx; func_offset: 0x%08lx", stack_offset, syscall.breakpoint, func_offset);
 
     state = swd_def::INITIALISED;
     return ESP_OK;
@@ -243,7 +266,7 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t end_addr)
     }
 
     uint32_t sector_cnt = (end_addr - start_addr) / flash_sector_size;
-    ESP_LOGI(TAG, "End addr 0x%x, start addr 0x%x, sector size %u", end_addr, start_addr, flash_sector_size);
+    ESP_LOGI(TAG, "End addr 0x%lx, start addr 0x%lx, sector size %lu", end_addr, start_addr, flash_sector_size);
     if ((end_addr - start_addr) % flash_sector_size != 0 || sector_cnt < 1) {
         ESP_LOGE(TAG, "Misaligned sector address");
         return ESP_ERR_INVALID_ARG;
@@ -334,10 +357,14 @@ esp_err_t swd_prog::program_page(const uint8_t *buf, size_t len, uint32_t start_
         return ESP_ERR_INVALID_STATE;
     }
 
+
+    ESP_LOGI(TAG, "program_page: page_size: %lu, pc_prg_page=0x%lx, flash_start_addr=0x%lx", page_size, pc_program_page, flash_start_addr);
+
     uint32_t addr_offset = flash_start_addr + (start_addr == UINT32_MAX ? 0 : start_addr);
     uint32_t remain_len = len;
     for (uint32_t page_idx = 0; page_idx < (len / page_size); page_idx += 1) {
         uint32_t write_size = std::min(page_size, remain_len);
+        ESP_LOGI(TAG, "program_page: write size: %lu", write_size);
         swd_ret = swd_write_memory(syscall.static_base, (uint8_t *)(buf + (page_idx * page_size)), write_size);
         if (swd_ret < 1) {
             ESP_LOGE(TAG, "Failed when writing RAM cache");
@@ -345,7 +372,7 @@ esp_err_t swd_prog::program_page(const uint8_t *buf, size_t len, uint32_t start_
             return ESP_ERR_INVALID_STATE;
         }
 
-        ESP_LOGI(TAG, "Writing page 0x%x, size %u", 0x08000000 + (page_idx * 1024), write_size);
+        ESP_LOGI(TAG, "Writing page 0x%lx, size %lu", 0x08000000 + (page_idx * page_size), write_size);
         swd_ret = swd_flash_syscall_exec(
                 &syscall,
                 func_offset + pc_program_page, // ErasePage PC = 305
@@ -435,20 +462,25 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t *len_written, uint32
         return ESP_ERR_INVALID_STATE;
     }
 
+    page_size = page_size * 2; // TODO: Temp fix
+
     uint32_t addr_offset = flash_start_addr + (start_addr == UINT32_MAX ? 0 : start_addr);
     uint32_t remain_len = len;
     auto *buf = new uint8_t[page_size];
     memset(buf, 0, page_size);
 
+    ESP_LOGI(TAG, "program_file: page_size: %lu, pc_prg_page=0x%lx, flash_start_addr=0x%lx", page_size, pc_program_page, flash_start_addr);
+
     for (uint32_t page_idx = 0; page_idx < ((len / page_size) + ((len % page_size != 0) ? 1 : 0)); page_idx += 1) {
         uint32_t write_size = std::min(page_size, remain_len);
         size_t read_len = fread(buf, 1, write_size, file);
+        ESP_LOGI(TAG, "program_file: write size: %lu", write_size);
         if (read_len != write_size) {
-            ESP_LOGW(TAG, "Trying to read %u bytes but got only %u bytes", write_size, read_len);
+            ESP_LOGW(TAG, "Trying to read %lu bytes but got only %u bytes", write_size, read_len);
             write_size = read_len;
         }
 
-        swd_ret = swd_write_memory(syscall.static_base, (uint8_t *)buf, write_size);
+        swd_ret = swd_write_memory(syscall.static_base + stack_size, (uint8_t *)buf, write_size); // TODO: temp fix
         if (swd_ret < 1) {
             ESP_LOGE(TAG, "Failed when writing RAM cache");
             delete[] buf;
@@ -456,13 +488,13 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t *len_written, uint32
             return ESP_ERR_INVALID_STATE;
         }
 
-        ESP_LOGD(TAG, "Writing page 0x%x, size %u", addr_offset + (page_idx * page_size), write_size);
+        ESP_LOGI(TAG, "Writing page 0x%lx, size %lu from RAM 0x%lx", addr_offset + (page_idx * page_size), write_size, syscall.static_base + stack_size);
         swd_ret = swd_flash_syscall_exec(
                 &syscall,
                 func_offset + pc_program_page, // ErasePage PC = 305
                 addr_offset + (page_idx * page_size), // r0 = flash base addr
                 write_size,
-                syscall.static_base, 0, // r1 = len, r2 = buf addr
+                syscall.static_base + stack_size, 0, // r1 = len, r2 = buf addr
                 FLASHALGO_RETURN_BOOL
         );
 
@@ -517,7 +549,7 @@ esp_err_t swd_prog::verify(uint32_t expected_crc, uint32_t start_addr, size_t le
 
     while(remain_len > 0) {
         uint8_t buf[1024] = { 0 };
-        uint32_t read_len = std::min((uint32_t)(sizeof(buf)), remain_len);
+        uint32_t read_len = std::min(sizeof(buf), remain_len);
         swd_ret = swd_read_memory((actual_read_addr + offset), buf, read_len);
         if (swd_ret < 1) {
             ESP_LOGE(TAG, "Failed when reading flash");
@@ -530,10 +562,10 @@ esp_err_t swd_prog::verify(uint32_t expected_crc, uint32_t start_addr, size_t le
     }
 
     if (expected_crc != actual_crc) {
-        ESP_LOGE(TAG, "CRC mismatched, expected 0x%x, actual 0x%x", expected_crc, actual_crc);
+        ESP_LOGE(TAG, "CRC mismatched, expected 0x%lx, actual 0x%lx", expected_crc, actual_crc);
         return ESP_ERR_INVALID_CRC;
     } else {
-        ESP_LOGI(TAG, "CRC matched, expected 0x%x, actual 0x%x", expected_crc, actual_crc);
+        ESP_LOGI(TAG, "CRC matched, expected 0x%lx, actual 0x%lx", expected_crc, actual_crc);
     }
 
     return ESP_OK;

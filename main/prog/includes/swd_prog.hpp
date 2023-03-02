@@ -42,6 +42,7 @@ private:
     swd_def::state state = swd_def::UNKNOWN;
     program_syscall_t syscall = {};
     uint32_t code_start = 0;
+    uint32_t stack_offset = 0;
     uint32_t func_offset = 0;
     uint32_t ram_addr = 0;
     uint32_t stack_size = 0;
