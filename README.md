@@ -32,4 +32,7 @@ Offline firmware downloader for ARM Cortex-M, on an ESP32-S3.
 This project (except 3rd-party libraries in `components` directory) has two types of licenses:
   - AGPL-3.0 for non-commercial purposes
   - Commercial licenses for any commercial purposes, speak to me (the author, Jackson Ming Hu, huming2207 at gmail.com) for more details.
-
+  - "Commercial purposes" here means any of these scenarios below:
+    - 1. Rebrand and/or resell this project's hardware, firmware and related software, with or without modification
+    - 2. Make use of this project for any commercial mass production (i.e. using this tool to download/flash firmware for manufacturing products in a production line)
+    - 3. Using this project as a repair/rework/experimental equipment in a repair shop as a service providing to others, or a lab in a company or university for R&D
