@@ -1,6 +1,7 @@
 #include <esp_log.h>
 #include <esp_crc.h>
 #include <esp_flash.h>
+#include <esp_mac.h>
 
 #include "cdc_acm.hpp"
 #include "config_manager.hpp"
@@ -10,21 +11,21 @@
 esp_err_t cdc_acm::init()
 {
     static char sn_str[32] = {};
-    static const char lang[2] = {0x09, 0x04};
-    static tusb_desc_strarray_device_t desc_str = {
-            // array of pointer to string descriptors
+    static char lang[2] = {0x09, 0x04};
+
+
+    static char *desc_str[5] = {
             lang,                // 0: is supported language is English (0x0409)
             "Jackson Hu", // 1: Manufacturer
             "Soul Injector Programmer",      // 2: Product
             sn_str,       // 3: Serials, should use chip ID
-            "Soul Injector Programmer",          // 4: CDC Interface
-            "",
-            "",
+            "Soul Injector v1",          // 4: CDC Interface
     };
-    static tusb_desc_device_t desc_device = {};
 
     tinyusb_config_t tusb_cfg = {}; // the configuration using default values
-    tusb_cfg.string_descriptor = desc_str;
+    tusb_cfg.string_descriptor = (const char **)desc_str;
+    tusb_cfg.device_descriptor = nullptr;
+    tusb_cfg.external_phy = false;
 
     uint8_t sn_buf[16] = { 0 };
     esp_efuse_mac_get_default(sn_buf);
@@ -93,7 +94,7 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
         return;
     } else {
         memcpy(ctx.raw_buf + ctx.raw_len, rx_buf, rx_size);
-        ctx.raw_len += rx_size;
+        ctx.raw_len = ctx.raw_len + rx_size;
     }
 
     // Start to decode if this is the last packet, otherwise continue to cache
@@ -121,10 +122,10 @@ void cdc_acm::serial_rx_cb(int itf, cdcacm_event_t *event)
                     return;
                 }
 
-                ctx.decoded_len += 1;
+                ctx.decoded_len = ctx.decoded_len + 1;
             } else {
                 ctx.decoded_buf[ctx.decoded_len] = ctx.raw_buf[idx];
-                ctx.decoded_len += 1;
+                ctx.decoded_len = ctx.decoded_len + 1;
             }
 
             idx += 1;
@@ -423,7 +424,7 @@ void cdc_acm::parse_set_algo_metadata()
 {
     auto *algo_info = (cdc_def::algo_info *)(decoded_buf + sizeof(cdc_def::header));
     if (algo_info->len > CFG_MGR_FLASH_ALGO_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) < algo_info->len) {
-        ESP_LOGE(TAG, "Flash algo metadata len too long: %u, free block: %u", algo_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+        ESP_LOGE(TAG, "Flash algo metadata len too long: %lu, free block: %u", algo_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
         send_nack();
         return;
     }
@@ -445,7 +446,7 @@ void cdc_acm::parse_set_fw_metadata()
 {
     auto *fw_info = (cdc_def::fw_info *)(decoded_buf + sizeof(cdc_def::header));
     if (fw_info->len > CFG_MGR_FW_MAX_SIZE || heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) < fw_info->len) {
-        ESP_LOGE(TAG, "Firmware metadata len too long: %u, free heap: %u", fw_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+        ESP_LOGE(TAG, "Firmware metadata len too long: %lu, free heap: %u", fw_info->len, heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
         heap_caps_dump(MALLOC_CAP_INTERNAL);
         send_nack();
         return;

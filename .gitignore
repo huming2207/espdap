@@ -84,3 +84,6 @@ Temporary Items
 
 # Some sensitive stuff
 main/fs_sample/*.bin
+
+# ESP-IDF's stuff
+managed_components/

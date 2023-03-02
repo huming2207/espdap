@@ -73,7 +73,7 @@ public:
     esp_err_t get_erase_sector_timeout(uint32_t &out) const;
     esp_err_t get_sector_size(uint32_t &out) const;
     esp_err_t get_fw_crc(uint32_t &out) const;
-    bool has_valid_cfg() const;
+    [[nodiscard]] bool has_valid_cfg() const;
 
     esp_err_t set_algo_name(const char *algo_name);
     esp_err_t set_target_name(const char *target_name);
