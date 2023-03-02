@@ -5,6 +5,7 @@
 #include <esp_log.h>
 #include <led_ctrl.hpp>
 #include <esp_crc.h>
+#include <esp_timer.h>
 
 #include "swd_headless_flasher.hpp"
 #include "cdc_acm.hpp"
@@ -107,7 +108,7 @@ void swd_headless_flasher::on_program()
     } else {
         ts = esp_timer_get_time() - ts;
         double speed = written_len / ((double)ts / 1000000.0);
-        ESP_LOGI(TAG, "Firmware written, len: %u, speed: %.2f bytes per sec", written_len, speed);
+        ESP_LOGI(TAG, "Firmware written, len: %lu, speed: %.2f bytes per sec", written_len, speed);
         state = flasher::VERIFY;
     }
 
