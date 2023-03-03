@@ -8,6 +8,7 @@ Offline firmware downloader for ARM Cortex-M, on an ESP32-S3.
 - [ ] SWD on SPI Master, instead of bit-banging
 - [ ] "Unlimited" buffering (write firmware chunk to RAM cache while the target is busy committing cache to flash)
 - [-] Better flash algorithm support (doing - plan to support [probe-rs's Rust-based flash algorithm](https://github.com/probe-rs/flash-algorithm-template))
+- [x] Chip erase
 - [x] Run flash algorithm (done in v0.0.1)
 - [x] Offline firmware flashing (done in v0.0.1)
 - [x] More (manual) tests (done in v1.0.0)
