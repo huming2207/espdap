@@ -87,7 +87,15 @@ void swd_headless_flasher::on_erase()
     uint32_t start_addr = 0, end_addr = 0;
     auto ret = cfg_manager.get_flash_start_addr(start_addr);
     ret = ret ?: cfg_manager.get_flash_end_addr(end_addr);
-    ret = ret ?: swd.erase_sector(start_addr, end_addr);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read flash addresses");
+    } else {
+        ret = swd.erase_chip();
+        if (ret != ESP_OK) {
+            ret = swd.erase_sector(start_addr, end_addr);
+        }
+    }
+
     if (ret != ESP_OK) {
         for (uint32_t idx = 0; idx < 32; idx++) {
             on_error();
