@@ -520,8 +520,6 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t *len_written, uint32
         return ESP_ERR_TIMEOUT;
     }
 
-    page_size = page_size * 2; // TODO: Temp fix
-
     uint32_t addr_offset = flash_start_addr + (start_addr == UINT32_MAX ? 0 : start_addr);
     uint32_t remain_len = len;
     auto *buf = new uint8_t[page_size];
