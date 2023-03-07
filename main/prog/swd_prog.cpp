@@ -223,7 +223,7 @@ esp_err_t swd_prog::init(config_manager *_algo, uint32_t _ram_addr, uint32_t _st
     uint32_t offset = 0;
     offset += sizeof(header_blob);
 
-    code_start = ram_addr; // 0x20000020?
+    code_start = ram_addr;
 
     uint32_t algo_bin_len = 0;
     if (fw_mgr->get_algo_bin_len(algo_bin_len) != ESP_OK) {
