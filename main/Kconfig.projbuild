@@ -70,4 +70,10 @@ menu "Soul Injector Configuration"
         help
              Render/SPI DMA buffer size
 
+    config SI_DISP_SLOW_CLK
+        bool "Slow down LCD display's SPI Clock"
+        default n
+        help
+            Slow down the SPI clock for debugging
+
 endmenu

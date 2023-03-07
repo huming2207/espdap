@@ -209,7 +209,7 @@ esp_err_t lv_st7789_init()
     };
 
     spi_device_interface_config_t device_config = {
-#ifndef CONFIG_LCD_SPI_CLK_DEBUG
+#ifndef CONFIG_SI_DISP_SLOW_CLK
             .clock_speed_hz = SPI_MASTER_FREQ_40M,
 #else
             .clock_speed_hz = SPI_MASTER_FREQ_8M,
