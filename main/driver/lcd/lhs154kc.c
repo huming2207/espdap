@@ -9,7 +9,10 @@
 #include <lvgl.h>
 #include "lhs154kc.h"
 
-#define LOG_TAG "st7789"
+#define LOG_TAG "lhs154kc"
+
+#define ST7789_CMD 0
+#define ST7789_DAT 1
 
 static spi_device_handle_t device_handle;
 static volatile bool spi_trans_in_progress;
@@ -70,8 +73,7 @@ static void st7789_spi_send_byte(const uint8_t *payload, size_t len, bool is_cmd
         return;
     }
 
-    spi_transaction_t spi_tract;
-    memset(&spi_tract, 0, sizeof(spi_tract));
+    spi_transaction_t spi_tract = {};
 
     spi_tract.tx_buffer = payload;
     spi_tract.length = len * 8;
@@ -90,8 +92,7 @@ static void st7789_spi_send_pixel(const uint16_t *payload, size_t len)
         return;
     }
 
-    spi_transaction_t spi_tract;
-    memset(&spi_tract, 0, sizeof(spi_tract));
+    spi_transaction_t spi_tract = {};
 
     spi_tract.tx_buffer = payload;
     spi_tract.length = len * 8;

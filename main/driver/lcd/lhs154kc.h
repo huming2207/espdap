@@ -9,9 +9,6 @@ extern "C" {
 #include <esp_err.h>
 #include <lvgl.h>
 
-#define ST7789_CMD 0
-#define ST7789_DAT 1
-
 #define SI_DISP_BUF_SIZE CONFIG_SI_DISP_PANEL_BUFFER_SIZE
 #define SI_DISP_HOR_SIZE 240
 #define SI_DISP_VER_SIZE 240
