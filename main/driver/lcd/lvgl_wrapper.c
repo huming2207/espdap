@@ -39,25 +39,25 @@ esp_err_t cal_disp_init()
     ESP_LOGI(TAG, "Display hardware init");
     lv_st7789_init();
 
-    buf_a = heap_caps_malloc(ST7789_DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    buf_a = heap_caps_malloc(SI_DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA);
     if (buf_a == NULL) {
         ESP_LOGE(TAG, "Failed to allocate display buffer");
         return ESP_ERR_NO_MEM;
     }
 
-    buf_b = heap_caps_malloc(ST7789_DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    buf_b = heap_caps_malloc(SI_DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA);
     if (buf_b == NULL) {
         ESP_LOGE(TAG, "Failed to allocate display buffer");
         free(buf_a);
         return ESP_ERR_NO_MEM;
     }
 
-    lv_disp_draw_buf_init(&draw_buf, buf_a, buf_b, ST7789_DISP_BUF_SIZE);
+    lv_disp_draw_buf_init(&draw_buf, buf_a, buf_b, SI_DISP_BUF_SIZE);
     static lv_disp_drv_t disp_drv = {};
     lv_disp_drv_init(&disp_drv);
     disp_drv.flush_cb = lv_st7789_flush;
-    disp_drv.hor_res = 240;
-    disp_drv.ver_res = 240;
+    disp_drv.hor_res = SI_DISP_HOR_SIZE;
+    disp_drv.ver_res = SI_DISP_VER_SIZE;
     disp_drv.draw_buf = &draw_buf;
     disp_drv.antialiasing = 1;
 
