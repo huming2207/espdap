@@ -1,3 +1,4 @@
+#include <sys/cdefs.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
@@ -30,7 +31,7 @@ static StaticTask_t lv_ui_task_stack;
 static StackType_t *lv_ui_task_stack_buf = NULL;
 static TaskHandle_t lv_ui_task_handle = NULL;
 
-static void lv_ui_task_handler(void *ctx)
+_Noreturn static void lv_ui_task_handler(void *ctx)
 {
     ESP_LOGI(TAG, "UI task started");
     while (true) {
