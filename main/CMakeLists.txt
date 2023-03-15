@@ -11,6 +11,7 @@ idf_component_register(
             "driver/includes/button_monitor.hpp"
             "driver/lcd/lhs154kc.c" "driver/lcd/lhs154kc.h"
             "driver/lcd/lvgl_wrapper.c" "driver/lcd/lvgl_wrapper.h"
+            "driver/lcd/lcd_manager.cpp" "driver/lcd/lcd_manager.hpp"
 
         INCLUDE_DIRS
             "." "misc/includes" "prog/includes" "external/includes" "comm/usb/includes" "driver/includes" "driver"
