@@ -8,6 +8,7 @@
 #include <esp_err.h>
 #include "swd_prog.hpp"
 #include "cdc_acm.hpp"
+#include "lcd/lcd_manager.hpp"
 
 namespace flasher
 {
@@ -45,6 +46,7 @@ private:
     cdc_acm &cdc = cdc_acm::instance();
     led_ctrl &led = led_ctrl::instance();
     swd_prog &swd = swd_prog::instance();
+    lcd_manager *lcd = lcd_manager::instance();
     EventGroupHandle_t flasher_evt = {};
     volatile flasher::pg_state state = flasher::DETECT;
 
