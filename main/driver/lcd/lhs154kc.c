@@ -188,12 +188,20 @@ void lv_st7789_flush(lv_disp_drv_t *disp_drv, const lv_area_t * area, lv_color_t
 esp_err_t lv_st7789_init()
 {
 
-    ESP_LOGI(LOG_TAG, "Performing GPIO init...");
-    esp_err_t ret = gpio_set_direction(CONFIG_LCD_IO_DC, GPIO_MODE_OUTPUT);
+    ESP_LOGI(LOG_TAG, "GPIO Init");
+
+    // For some special pins like JTAG pins, we need to reset them before use
+    esp_err_t ret = gpio_reset_pin(CONFIG_SI_DISP_PANEL_IO_RST);
+    ret = ret ?: gpio_reset_pin(CONFIG_SI_DISP_PANEL_IO_SCLK);
+    ret = ret ?: gpio_reset_pin(CONFIG_SI_DISP_PANEL_IO_DC);
+    ret = ret ?: gpio_reset_pin(CONFIG_SI_DISP_PANEL_IO_CS);
+    ret = ret ?: gpio_reset_pin(CONFIG_SI_DISP_PANEL_IO_MOSI);
+
+    ret = ret ?: gpio_set_direction(CONFIG_LCD_IO_DC, GPIO_MODE_OUTPUT);
     ret = ret ?: gpio_set_pull_mode(CONFIG_LCD_IO_DC, GPIO_PULLUP_ONLY);
     ret = ret ?: gpio_set_direction(CONFIG_LCD_IO_RST, GPIO_MODE_OUTPUT);
     ret = ret ?: gpio_set_pull_mode(CONFIG_LCD_IO_RST, GPIO_PULLUP_ONLY);
-    ESP_LOGI(LOG_TAG, "GPIO initialization finished, resetting OLED...");
+    ESP_LOGI(LOG_TAG, "Reset display");
 
     ESP_ERROR_CHECK(gpio_set_level(CONFIG_LCD_IO_RST, 0));
     vTaskDelay(pdMS_TO_TICKS(100));
