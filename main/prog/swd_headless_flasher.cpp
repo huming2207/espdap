@@ -33,6 +33,8 @@ esp_err_t swd_headless_flasher::init()
     ret = led.init(GPIO_NUM_48);
     led.set_color(60,0,0,30);
 
+    ret = ret ?: lcd->init();
+
     ret = ret ?: cfg_manager.init();
     ret = ret ?: cdc.init();
 
