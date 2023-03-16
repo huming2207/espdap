@@ -42,6 +42,7 @@ public:
 private:
     lcd_manager() = default;
     esp_err_t clear_display();
+    esp_err_t draw_two_bars(lv_obj_t **top_out, lv_obj_t **bottom_out, lv_color_t top_color, lv_color_t bottom_color);
 
 private:
     lcd::state curr_state = lcd::STATE_SPLASH;
