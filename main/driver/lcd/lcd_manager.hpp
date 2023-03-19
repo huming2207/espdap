@@ -33,7 +33,7 @@ public:
     esp_err_t init();
     esp_err_t display_splash();
     esp_err_t display_detect();
-    esp_err_t display_erase(bool is_chip_erase);
+    esp_err_t display_erase();
     esp_err_t display_program(uint8_t percentage);
     esp_err_t display_error(const char *err_heading, const char *err_msg);
     esp_err_t display_verify(const char *verify_msg);
