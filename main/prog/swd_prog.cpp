@@ -125,7 +125,8 @@ esp_err_t swd_prog::run_algo_init(swd_def::init_mode mode)
                 flash_start_addr, // r0 = flash base addr
                 0, // r1 = ignored
                 mode, 0, // r2 = mode, r3 ignored
-                FLASHALGO_RETURN_BOOL
+                FLASHALGO_RETURN_BOOL,
+                nullptr
         );
 
         if (ret < 1) {
@@ -169,7 +170,8 @@ esp_err_t swd_prog::run_algo_uninit(swd_def::init_mode mode)
             func_offset + pc_uninit, // UnInit PC = 61
             mode,
             0, 0, 0, // r2, r3 = ignored
-            FLASHALGO_RETURN_BOOL
+            FLASHALGO_RETURN_BOOL,
+            nullptr
     );
 
     if (ret < 1) {
@@ -291,7 +293,8 @@ esp_err_t swd_prog::erase_chip()
             func_offset + pc_erase_all,
             0, // No arguments
             0, 0, 0, // r1, r2 = ignored
-            FLASHALGO_RETURN_BOOL
+            FLASHALGO_RETURN_BOOL,
+            nullptr
     );
 
     if (swd_ret < 1) {
@@ -309,6 +312,55 @@ esp_err_t swd_prog::erase_chip()
 
     state = swd_def::FLASH_ALG_UNINITED;
     return ret;
+}
+
+esp_err_t swd_prog::self_test(uint16_t test_id, uint8_t *readout_buf, size_t readout_buf_len, uint32_t *func_return_val)
+{
+    uint32_t pc_verify = 0;
+    auto nvs_ret = fw_mgr->get_pc_verify(pc_verify);
+
+    if (nvs_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Missing config for Verify/SelfTest");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (state != swd_def::FLASH_ALG_INITED) {
+        ESP_LOGW(TAG, "Flash alg not initialised, doing now");
+        auto ret = run_algo_init(swd_def::ERASE);
+        if (ret != ESP_OK) return ret;
+    }
+
+    auto swd_ret = swd_halt_target();
+    if (swd_ret < 1) {
+        ESP_LOGE(TAG, "Failed when halting");
+        state = swd_def::UNKNOWN;
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    swd_ret = swd_wait_until_halted();
+    if (swd_ret < 1) {
+        ESP_LOGE(TAG, "Timeout when halting");
+        state = swd_def::UNKNOWN;
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    swd_ret = swd_flash_syscall_exec(
+            &syscall,
+            func_offset + pc_verify,
+            test_id + 0xfffff000, // r0 is addr, for SI's algo executing 0xfffff000+ to trigger self test
+            readout_buf_len, // r1 indicates self test result RAM buffer size (or 0 if not used)
+            0, // r2 indicates self test result RAM buffer pointer (or 0, aka. null, if not used) - TODO: need to implement readout buffer copy
+            0, // r3 unused
+            FLASHALGO_RETURN_VALUE,
+            func_return_val
+    );
+
+    if (swd_ret < 1) {
+        ESP_LOGE(TAG, "Self-test function returned an unknown error");
+        return ESP_FAIL;
+    }
+
+    return 0;
 }
 
 esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t end_addr)
@@ -357,7 +409,8 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t end_addr)
                 func_offset + pc_erase_sector, // ErasePage PC = 173
                 flash_start_addr + (idx * flash_sector_size), // r0 = flash base addr
                 0, 0, 0, // r1, r2 = ignored
-                FLASHALGO_RETURN_BOOL
+                FLASHALGO_RETURN_BOOL,
+                nullptr
         );
 
         if (swd_ret < 1) {
@@ -437,7 +490,8 @@ esp_err_t swd_prog::program_page(const uint8_t *buf, size_t len, uint32_t start_
                 addr_offset + (page_idx * page_size), // r0 = flash base addr
                 write_size,
                 syscall.static_base, 0, // r1 = len, r2 = buf addr
-                FLASHALGO_RETURN_BOOL
+                FLASHALGO_RETURN_BOOL,
+                nullptr
         );
 
         if(page_idx % 2 == 0) {
@@ -551,7 +605,8 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t *len_written, uint32
                 addr_offset + (page_idx * page_size), // r0 = flash base addr
                 write_size,
                 syscall.static_base + stack_size, 0, // r1 = len, r2 = buf addr
-                FLASHALGO_RETURN_BOOL
+                FLASHALGO_RETURN_BOOL,
+                nullptr
         );
 
         if(page_idx % 2 == 0) {
