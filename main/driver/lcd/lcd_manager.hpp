@@ -47,4 +47,6 @@ private:
 private:
     lcd::state curr_state = lcd::STATE_SPLASH;
     lv_obj_t *root_obj = nullptr;
+    lv_obj_t *top_bar = nullptr;
+    lv_obj_t *bottom_bar = nullptr;
 };
