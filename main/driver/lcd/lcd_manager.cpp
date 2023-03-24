@@ -22,10 +22,13 @@ esp_err_t lcd_manager::display_splash()
     }
 
     ret = lvgl_take_lock(pdMS_TO_TICKS(1000));
-
-    lv_obj_t *top_bar = nullptr;
-    lv_obj_t *bottom_bar = nullptr;
-    ret = ret ?: draw_two_bars(&top_bar, &bottom_bar, lv_color_hex(0x27632a), lv_color_hex(0xff9800));
+    if (curr_state != lcd::STATE_SPLASH || root_obj == nullptr) {
+        ret = ret ?: draw_two_bars(&top_bar, &bottom_bar, lv_color_hex(0x27632a), lv_color_hex(0xff9800));
+        curr_state = lcd::STATE_SPLASH;
+    } else {
+        lvgl_give_lock();
+        return ESP_OK;
+    }
 
     auto *top_text = lv_label_create(top_bar);
     lv_obj_align(top_text, LV_ALIGN_CENTER, 0, 0);
@@ -53,10 +56,13 @@ esp_err_t lcd_manager::display_detect()
     }
 
     ret = lvgl_take_lock(pdMS_TO_TICKS(1000));
-
-    lv_obj_t *top_bar = nullptr;
-    lv_obj_t *bottom_bar = nullptr;
-    ret = ret ?: draw_two_bars(&top_bar, &bottom_bar, lv_color_hex(0x005f56), lv_color_hex(0xb26500)); // Dark cyan
+    if (curr_state != lcd::STATE_DETECT || root_obj == nullptr) {
+        ret = ret ?: draw_two_bars(&top_bar, &bottom_bar, lv_color_hex(0x005f56), lv_color_hex(0xb26500)); // Dark cyan
+        curr_state = lcd::STATE_DETECT;
+    } else {
+        lvgl_give_lock();
+        return ESP_OK;
+    }
 
     auto *top_text = lv_label_create(top_bar);
     lv_obj_align(top_text, LV_ALIGN_CENTER, 0, 0);
@@ -86,10 +92,13 @@ esp_err_t lcd_manager::display_erase()
     }
 
     ret = lvgl_take_lock(pdMS_TO_TICKS(1000));
-
-    lv_obj_t *top_bar = nullptr;
-    lv_obj_t *bottom_bar = nullptr;
-    ret = ret ?: draw_two_bars(&top_bar, &bottom_bar, lv_color_hex(0x01579b), lv_color_hex(0x631976)); // Dark blue
+    if (curr_state != lcd::STATE_ERASE || root_obj == nullptr) {
+        ret = ret ?: draw_two_bars(&top_bar, &bottom_bar, lv_color_hex(0x01579b), lv_color_hex(0x631976)); // Dark blue
+        curr_state = lcd::STATE_ERASE;
+    } else {
+        lvgl_give_lock();
+        return ESP_OK;
+    }
 
     auto *top_text = lv_label_create(top_bar);
     lv_obj_align(top_text, LV_ALIGN_CENTER, 0, 0);
@@ -121,8 +130,6 @@ esp_err_t lcd_manager::display_program(uint8_t percentage)
 
     ret = lvgl_take_lock(pdMS_TO_TICKS(1000));
 
-    lv_obj_t *top_bar = nullptr;
-    lv_obj_t *bottom_bar = nullptr;
     ret = ret ?: draw_two_bars(&top_bar, &bottom_bar, lv_color_hex(0xffab00), lv_color_white()); // Orange
 
     auto *top_text = lv_label_create(top_bar);
@@ -152,9 +159,6 @@ esp_err_t lcd_manager::display_error(const char *err_heading, const char *err_ms
     }
 
     ret = lvgl_take_lock(pdMS_TO_TICKS(1000));
-
-    lv_obj_t *top_bar = nullptr;
-    lv_obj_t *bottom_bar = nullptr;
     ret = ret ?: draw_two_bars(&top_bar, &bottom_bar, lv_color_black(), lv_color_hex(0xff0000)); // Red
 
     auto *top_text = lv_label_create(top_bar);
@@ -189,9 +193,6 @@ esp_err_t lcd_manager::display_verify(const char *verify_msg)
     }
 
     ret = lvgl_take_lock(pdMS_TO_TICKS(1000));
-
-    lv_obj_t *top_bar = nullptr;
-    lv_obj_t *bottom_bar = nullptr;
     ret = ret ?: draw_two_bars(&top_bar, &bottom_bar, lv_color_hex(0x512da8), lv_color_white()); // Red
 
     auto *top_text = lv_label_create(top_bar);
@@ -227,9 +228,13 @@ esp_err_t lcd_manager::display_done()
 
     ret = lvgl_take_lock(pdMS_TO_TICKS(1000));
 
-    lv_obj_t *top_bar = nullptr;
-    lv_obj_t *bottom_bar = nullptr;
-    ret = ret ?: draw_two_bars(&top_bar, &bottom_bar, lv_color_hex(0x1b5e20), lv_color_white()); // Red
+    if (curr_state != lcd::STATE_ERASE || root_obj == nullptr) {
+        ret = ret ?: draw_two_bars(&top_bar, &bottom_bar, lv_color_hex(0x1b5e20), lv_color_white()); // Red
+        curr_state = lcd::STATE_DONE;
+    } else {
+        lvgl_give_lock();
+        return ESP_OK;
+    }
 
     auto *top_text = lv_label_create(top_bar);
     lv_obj_align(top_text, LV_ALIGN_CENTER, 0, 0);
