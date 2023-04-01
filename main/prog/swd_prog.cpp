@@ -200,6 +200,7 @@ esp_err_t swd_prog::init(config_manager *_algo, uint32_t _ram_addr, uint32_t _st
     ram_addr = _ram_addr;
     stack_size = _stack_size_byte;
 
+    ESP_LOGI(TAG, "Init target");
     auto ret = swd_init_debug();
     if (ret < 1) {
         ESP_LOGE(TAG, "Failed when init");
@@ -207,6 +208,7 @@ esp_err_t swd_prog::init(config_manager *_algo, uint32_t _ram_addr, uint32_t _st
         return ESP_FAIL;
     }
 
+    ESP_LOGI(TAG, "Halt target");
     ret = swd_halt_target();
     if (ret < 1) {
         ESP_LOGE(TAG, "Failed when halting");
@@ -321,7 +323,7 @@ esp_err_t swd_prog::self_test(uint16_t test_id, uint8_t *readout_buf, size_t rea
 
     if (nvs_ret != ESP_OK) {
         ESP_LOGE(TAG, "Missing config for Verify/SelfTest");
-        return ESP_ERR_INVALID_STATE;
+        return ESP_ERR_NOT_SUPPORTED;
     }
 
     if (state != swd_def::FLASH_ALG_INITED) {
