@@ -19,7 +19,8 @@ namespace flasher
         PROGRAM = 2,
         ERROR = 3,
         VERIFY = 4,
-        DONE = 5,
+        SELF_TEST = 5,
+        DONE = 6,
     };
 
     enum event_bit : uint32_t {
@@ -61,6 +62,7 @@ private:
     void on_erase();
     void on_program();
     void on_verify();
+    void on_self_test();
     void on_done();
 
     static void button_isr(void *_ctx);

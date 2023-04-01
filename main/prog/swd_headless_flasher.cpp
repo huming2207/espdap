@@ -33,7 +33,7 @@ esp_err_t swd_headless_flasher::init()
     ret = led.init((gpio_num_t)(CONFIG_SI_LED_SIGNAL_PIN));
     led.set_color(60,0,0,30);
 
-    ret = ret ?: lcd->init();
+    //ret = ret ?: lcd->init();
 
     ret = ret ?: cfg_manager.init();
     ret = ret ?: cdc.init();
@@ -67,6 +67,10 @@ esp_err_t swd_headless_flasher::init()
             }
             case flasher::VERIFY: {
                 on_verify();
+                break;
+            }
+            case flasher::SELF_TEST: {
+                on_self_test();
                 break;
             }
         }
@@ -160,8 +164,44 @@ void swd_headless_flasher::on_verify()
         state = flasher::ERROR;
     } else {
         ESP_LOGI(TAG, "Firmware verified");
-        state = flasher::DONE;
+        state = flasher::SELF_TEST;
     }
+}
+
+
+void swd_headless_flasher::on_self_test()
+{
+    ESP_LOGI(TAG, "Run self test");
+
+    // TODO: just testing
+    uint32_t func_ret = UINT32_MAX;
+    auto ret = swd.self_test(0x004, nullptr, 0, &func_ret);
+    if (ret == ESP_ERR_NOT_SUPPORTED) {
+        ESP_LOGW(TAG, "No self test config found, skipping");
+        state = flasher::DONE;
+        return;
+    } else if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Self test failed, host returned 0x%x, function returned 0x%lx", ret, func_ret);
+        state = flasher::ERROR;
+        return;
+    }
+
+    ESP_LOGW(TAG, "Self test OK, host returned 0x%x, function returned 0x%lx", ret, func_ret);
+
+    ret = swd.self_test(0x003, nullptr, 0, &func_ret);
+    if (ret == ESP_ERR_NOT_SUPPORTED) {
+        ESP_LOGW(TAG, "No self test config found, skipping");
+        state = flasher::DONE;
+        return;
+    } else if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Self test failed, host returned 0x%x, function returned 0x%lx", ret, func_ret);
+        state = flasher::ERROR;
+        return;
+    }
+
+    ESP_LOGW(TAG, "Self test OK, host returned 0x%x, function returned 0x%lx", ret, func_ret);
+
+    state = flasher::DONE;
 }
 
 void swd_headless_flasher::button_isr(void *_ctx)
