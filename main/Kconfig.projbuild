@@ -76,4 +76,23 @@ menu "Soul Injector Configuration"
         help
             Slow down the SPI clock for debugging
 
+    config SI_LED_SIGNAL_PIN
+        int "LED indicator pin"
+        default 10
+        help
+            RGB LED pin
+
+    choice SI_LED_MODEL
+        prompt "LED indicator model"
+        default SI_LED_WS2812B
+
+        config SI_LED_WS2812B
+            bool
+            prompt "WS2812B-B"
+
+        config SI_LED_SK6812RGB
+            bool
+            prompt "SK6812 (RGB, no white)"
+    endchoice
+
 endmenu
