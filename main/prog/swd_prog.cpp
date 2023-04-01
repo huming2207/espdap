@@ -288,7 +288,7 @@ esp_err_t swd_prog::erase_chip()
         return ESP_ERR_INVALID_STATE;
     }
 
-    led.set_color(0, 0, 160, 1);
+    led.set_color(0, 0, 60, 1);
 
     swd_ret = swd_flash_syscall_exec(
             &syscall,
@@ -421,7 +421,7 @@ esp_err_t swd_prog::erase_sector(uint32_t start_addr, uint32_t end_addr)
         }
 
         if(idx % 10 == 0) {
-            led.set_color(0, 0, 160, 50);
+            led.set_color(0, 0, 60, 50);
         } else {
             led.set_color(0, 0, 0, 50);
         }
@@ -497,7 +497,7 @@ esp_err_t swd_prog::program_page(const uint8_t *buf, size_t len, uint32_t start_
         );
 
         if(page_idx % 2 == 0) {
-            led.set_color(60, 60, 0, 20);
+            led.set_color(50, 50, 0, 20);
         } else {
             led.set_color(0, 0, 0, 20);
         }
@@ -612,7 +612,7 @@ esp_err_t swd_prog::program_file(const char *path, uint32_t *len_written, uint32
         );
 
         if(page_idx % 2 == 0) {
-            led.set_color(60, 60, 0, 20);
+            led.set_color(50, 50, 0, 20);
         } else {
             led.set_color(0, 0, 0, 20);
         }
