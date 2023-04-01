@@ -2,6 +2,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <driver/gpio.h>
 #include <led_strip.h>
 
 class led_ctrl
@@ -45,9 +46,12 @@ public:
         return led_strip_new_rmt_device((const led_strip_config_t *)&led_config, (const led_strip_rmt_config_t *)&rmt_config, &led);
     }
 
-    void set_color(uint8_t r, uint8_t g, uint8_t b, uint32_t wait_ms)
+    esp_err_t set_color(uint8_t r, uint8_t g, uint8_t b, uint32_t wait_ms)
     {
-        led_strip_set_pixel(led, 0, r, g, b);
+        auto ret = led_strip_set_pixel(led, 0, r, g, b);
+        ret = ret ?: led_strip_refresh(led);
+
+        return ret;
     }
 };
 
