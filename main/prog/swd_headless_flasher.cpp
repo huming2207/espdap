@@ -81,7 +81,7 @@ esp_err_t swd_headless_flasher::init()
 
 void swd_headless_flasher::on_error()
 {
-    led.set_color(80, 0, 0, 50);
+    led.set_color(50, 0, 0, 50);
     vTaskDelay(pdMS_TO_TICKS(300));
     led.set_color(0, 0, 0, 50);
     vTaskDelay(pdMS_TO_TICKS(300));
@@ -145,7 +145,7 @@ void swd_headless_flasher::on_detect()
 
 void swd_headless_flasher::on_done()
 {
-    led.set_color(0, 80, 0, 50);
+    led.set_color(0, 50, 0, 50);
     vTaskDelay(pdMS_TO_TICKS(50));
     led.set_color(0, 0, 0, 50);
     vTaskDelay(pdMS_TO_TICKS(500));
@@ -172,6 +172,8 @@ void swd_headless_flasher::on_verify()
 void swd_headless_flasher::on_self_test()
 {
     ESP_LOGI(TAG, "Run self test");
+
+    led.set_color(100, 0, 100, 0);
 
     // TODO: just testing
     uint32_t func_ret = UINT32_MAX;
