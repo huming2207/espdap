@@ -189,6 +189,11 @@ void swd_headless_flasher::on_self_test()
     }
 
     ESP_LOGW(TAG, "Self test OK, host returned 0x%x, function returned 0x%lx", ret, func_ret);
+    if (func_ret != 0) {
+        ESP_LOGE(TAG, "Flash algo test failed");
+        state = flasher::ERROR;
+        return;
+    }
 
     ret = swd.self_test(0x003, nullptr, 0, &func_ret);
     if (ret == ESP_ERR_NOT_SUPPORTED) {
@@ -202,6 +207,11 @@ void swd_headless_flasher::on_self_test()
     }
 
     ESP_LOGW(TAG, "Self test OK, host returned 0x%x, function returned 0x%lx", ret, func_ret);
+    if (func_ret != 0) {
+        ESP_LOGE(TAG, "Flash algo test failed");
+        state = flasher::ERROR;
+        return;
+    }
 
     state = flasher::DONE;
 }
