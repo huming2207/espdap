@@ -5,3 +5,6 @@
 	path = components/lvgl
 	url = https://github.com/lvgl/lvgl.git
 	branch = release/v8.3
+[submodule "components/http_proxy"]
+	path = components/http_proxy
+	url = git@github.com:huming2207/esp-tcp-transport-http-proxy.git
