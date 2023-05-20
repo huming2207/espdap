@@ -213,6 +213,8 @@ void swd_headless_flasher::on_self_test()
         return;
     }
 
+    swd_prog::trigger_nrst();
+
     state = flasher::DONE;
 }
 
