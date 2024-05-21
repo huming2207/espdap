@@ -20,3 +20,6 @@
 [submodule "components/ina228"]
 	path = components/ina228
 	url = git@github.com:huming2207/esp-ina228.git
+[submodule "components/esp-mqtt"]
+	path = components/esp-mqtt
+	url = https://github.com/espressif/esp-mqtt.git
