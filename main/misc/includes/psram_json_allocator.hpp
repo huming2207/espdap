@@ -3,8 +3,9 @@
 #include <ArduinoJson.hpp>
 #include <esp_heap_caps.h>
 
-class PsRamAllocator : ArduinoJson::Allocator
+class PsRamAllocator : public ArduinoJson::Allocator
 {
+public:
     void *allocate(size_t len) override
     {
         return heap_caps_malloc(len, MALLOC_CAP_SPIRAM);
