@@ -10,7 +10,7 @@ idf_component_register(
             "misc/includes/file_utils.hpp"
             "comm/comm_msc.cpp" "comm/comm_msc.hpp"
             "comm/wifi_manager.cpp" "comm/wifi_manager.hpp"
-            "comm/rpc_client.cpp" "comm/rpc_client.hpp" "comm/rpc_packet.hpp"
+            "comm/mq_client.cpp" "comm/mq_client.hpp" "comm/rpc_packet.hpp"
             "misc/includes/psram_json_allocator.hpp"
             "misc/config_loader.cpp" "misc/includes/config_loader.hpp"
             "misc/includes/json_file_reader.hpp"
@@ -51,4 +51,5 @@ idf_component_register(
             "wear_levelling"
             "esp_wifi"
             "esp_http_client"
+            "esp-mqtt"
 )
