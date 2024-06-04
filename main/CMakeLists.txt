@@ -45,7 +45,6 @@ idf_component_register(
             "esp_timer"
             "lvgl"
             "led_strip"
-            "lua"
             "arduino_json"
             "esp_lcd"
             "wear_levelling"
