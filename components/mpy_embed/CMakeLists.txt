@@ -7,7 +7,7 @@ idf_component_register(
 
 set(MPY_TOP ${COMPONENT_DIR}/micropython)
 add_custom_command(OUTPUT "mpy_embed"
-        COMMAND make -C ${COMPONENT_DIR}/mpy_embed MICROPYTHON_TOP=${MPY_TOP} -f ${MPY_TOP}/ports/embed/embed.mk
+        COMMAND make -C ${COMPONENT_DIR}/mpy_embed MICROPYTHON_TOP=${MPY_TOP} -f ${COMPONENT_DIR}/mpy_embed/micropython_embed.mk
         DEPENDS ${COMPONENT_DIR}/mpy_embed/mpconfigport.h
         VERBATIM)
 
