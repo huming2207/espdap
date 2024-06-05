@@ -1,7 +1,8 @@
 file(GLOB_RECURSE MPY_SRC "mpy_embed/*.c")
+file(GLOB_RECURSE MPY_MOD_SRC "mods/*.c")
 
 idf_component_register(
-        SRCS ${MPY_SRC}
+        SRCS ${MPY_SRC} ${MPY_MOD_SRC}
         INCLUDE_DIRS "mpy_embed" "mpy_embed/micropython_embed" "mpy_embed/build-embed" "mpy_embed/build-embed/genhdr"
 )
 
