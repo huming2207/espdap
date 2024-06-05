@@ -1,9 +1,13 @@
 file(GLOB_RECURSE MPY_SRC "mpy_embed/*.c")
 file(GLOB_RECURSE MPY_MOD_SRC "mods/*.c")
+file(GLOB_RECURSE MPY_GLUE_SRC "glue/*.c" "glue/*.cpp" "glue/*.h" "glue/*.hpp")
 
 idf_component_register(
-        SRCS ${MPY_SRC} ${MPY_MOD_SRC}
-        INCLUDE_DIRS "mpy_embed" "mpy_embed/micropython_embed" "mpy_embed/build-embed" "mpy_embed/build-embed/genhdr"
+        SRCS ${MPY_SRC} ${MPY_MOD_SRC} ${MPY_GLUE_SRC}
+        INCLUDE_DIRS
+            "mpy_embed"
+            "mpy_embed/micropython_embed" "mpy_embed/build-embed" "mpy_embed/build-embed/genhdr"
+            "glue"
 )
 
 set(MPY_TOP ${COMPONENT_DIR}/micropython)
