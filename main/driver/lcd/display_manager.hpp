@@ -39,6 +39,7 @@ private:
     disp_panel_if *panel = (disp_panel_if *)(new nfp190b_panel());
 #elif defined(CONFIG_SI_DISP_PANEL_NFP114H)
     disp_panel_if *panel = (disp_panel_if *)(new nfp114h_panel());
+    ui_composer_114 composer {};
 #endif
 
 private:
@@ -55,5 +56,4 @@ private:
     esp_timer_handle_t timer_handle = nullptr;
     QueueHandle_t ui_queue = nullptr;
 
-    ui_composer_114 composer {};
 };
