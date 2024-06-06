@@ -5,6 +5,8 @@
 #include "rpc_packet.hpp"
 #include "mqtt_client.h"
 
+#define static_char static const constexpr char
+
 class mq_client
 {
 public:
@@ -34,6 +36,9 @@ public:
     esp_err_t record_repair(rpc::repair_event *repair_evt);
     esp_err_t record_dispose(rpc::repair_event *repair_evt);
 
+public:
+    esp_err_t subscribe_on_connect();
+
 private:
     esp_mqtt_client_handle_t mqtt_handle = nullptr;
     esp_mqtt_client_config_t mqtt_cfg = {};
@@ -44,12 +49,19 @@ private:
     esp_err_t record_stuff(rpc::base_event *event, const char *event_subtopic);
 
 private:
-    static const constexpr char TAG[] = "si_mqtt";
-    static const constexpr char TOPIC_BASE[] = "soulinj/v1/prod";
-    static const constexpr char TOPIC_PROG[] = "prog";
-    static const constexpr char TOPIC_SELF_TEST[] = "test/int";
-    static const constexpr char TOPIC_EXTN_TEST[] = "test/ext";
-    static const constexpr char TOPIC_ERASE[] = "erase";
-    static const constexpr char TOPIC_REPAIR[] = "repair";
-    static const constexpr char TOPIC_DISPOSE[] = "dispose";
+    static_char TAG[] = "si_mqtt";
+    static_char TOPIC_REPORT_BASE[] = "/soulinjector/v1/report";
+    static_char TOPIC_REPORT_PROG[] = "prog";
+    static_char TOPIC_REPORT_SELF_TEST[] = "test/int";
+    static_char TOPIC_REPORT_EXTN_TEST[] = "test/ext";
+    static_char TOPIC_REPORT_ERASE[] = "erase";
+    static_char TOPIC_REPORT_REPAIR[] = "repair";
+    static_char TOPIC_REPORT_DISPOSE[] = "dispose";
+
+public:
+    static_char TOPIC_CMD_BASE[] = "/soulinjector/v1/cmd";
+    static_char TOPIC_CMD_BIN_FIRMWARE[] = "bin/fw";
+    static_char TOPIC_CMD_BIN_FLASH_ALGO[] = "bin/algo";
+    static_char TOPIC_CMD_SET_STATE[] = "state";
+    static_char TOPIC_CMD_READ_MEM[] = "read_mem";
 };
