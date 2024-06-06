@@ -99,5 +99,43 @@ esp_err_t mq_client::record_dispose(rpc::repair_event *repair_evt)
 
 void mq_client::mq_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
 {
+    auto *ctx = (mq_client *)handler_args;
+    auto *mqtt_evt = (esp_mqtt_event_handle_t)event_data;
 
+    if (ctx == nullptr || mqtt_evt == nullptr) {
+        return;
+    }
+
+    switch (mqtt_evt->event_id) {
+        case MQTT_EVENT_ERROR: {
+            break;
+        }
+        case MQTT_EVENT_CONNECTED: {
+            break;
+        }
+        case MQTT_EVENT_DISCONNECTED: {
+            break;
+        }
+        case MQTT_EVENT_SUBSCRIBED: {
+            break;
+        }
+        case MQTT_EVENT_UNSUBSCRIBED: {
+            break;
+        }
+        case MQTT_EVENT_PUBLISHED: {
+            break;
+        }
+        case MQTT_EVENT_DATA: {
+            break;
+        }
+        case MQTT_EVENT_BEFORE_CONNECT: {
+            break;
+        }
+        case MQTT_EVENT_DELETED: {
+            break;
+        }
+        default: {
+            break;
+        }
+    }
 }
