@@ -4,6 +4,7 @@ idf_component_register(
             "prog/swd_prog.cpp" "prog/includes/swd_prog.hpp"
             "prog/offline_asset_manager.cpp" "prog/includes/offline_asset_manager.hpp"
             "prog/offline_flasher.cpp" "prog/includes/offline_flasher.hpp"
+            "prog/cohere_flasher.cpp" "prog/includes/cohere_flasher.hpp"
             "prog/includes/led_ctrl.hpp"
             "prog/flash_algo_parser.cpp" "prog/includes/flash_algo_parser.hpp"
             "prog/self_test_runner.cpp" "prog/includes/self_test_runner.hpp"
