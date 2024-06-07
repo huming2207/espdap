@@ -3,6 +3,7 @@
 #define ARDUINOJSON_ENABLE_STRING_VIEW 1
 #include <ArduinoJson.hpp>
 #include <esp_wifi_types.h>
+#include "psram_json_allocator.hpp"
 
 namespace config
 {
@@ -32,7 +33,8 @@ public:
 private:
     config_loader() = default;
     json_file_reader cfg_reader {};
-    ArduinoJson::JsonDocument json_doc{};
+    PsRamAllocator json_allocator {};
+    ArduinoJson::JsonDocument json_doc = ArduinoJson::JsonDocument(&json_allocator);
 
 private:
     static const constexpr char TAG[] = "cfg_ldr";
