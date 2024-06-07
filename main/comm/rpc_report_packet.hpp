@@ -4,7 +4,7 @@
 #include <ArduinoJson.hpp>
 #include <psram_json_allocator.hpp>
 
-namespace rpc
+namespace rpc::report
 {
     enum event_type : uint8_t
     {

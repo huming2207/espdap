@@ -3,7 +3,8 @@
 #include <esp_efuse.h>
 #include <esp_http_client.h>
 #include <esp_mac.h>
-#include "rpc_packet.hpp"
+#include "rpc_report_packet.hpp"
+#include "rpc_cmd_packet.hpp"
 
 esp_err_t mq_client::init(esp_mqtt_client_config_t *_mqtt_cfg)
 {
@@ -13,20 +14,34 @@ esp_err_t mq_client::init(esp_mqtt_client_config_t *_mqtt_cfg)
         return ESP_FAIL;
     }
 
+    mqtt_state = xEventGroupCreate();
+    if (mqtt_state == nullptr) {
+        ESP_LOGE(TAG, "Failed to create state event group");
+        return ESP_ERR_NO_MEM;
+    }
+
     return esp_mqtt_client_register_event(mqtt_handle, MQTT_EVENT_ANY, mq_event_handler, this);;
 }
 
-esp_err_t mq_client::pair()
+esp_err_t mq_client::connect()
 {
-    return 0;
+    if (mqtt_state != nullptr) {
+        xEventGroupClearBits(mqtt_state, MQ_STATE_FORCE_DISCONNECT);
+    }
+
+    return esp_mqtt_client_start(mqtt_handle);
 }
 
-esp_err_t mq_client::login()
+esp_err_t mq_client::disconnect()
 {
-    return 0;
+    if (mqtt_state != nullptr) {
+        xEventGroupSetBits(mqtt_state, MQ_STATE_FORCE_DISCONNECT);
+    }
+
+    return esp_mqtt_client_disconnect(mqtt_handle);
 }
 
-esp_err_t mq_client::record_stuff(rpc::base_event *event, const char *event_subtopic)
+esp_err_t mq_client::record_stuff(rpc::report::base_event *event, const char *event_subtopic)
 {
     if (event_subtopic == nullptr) {
         ESP_LOGE(TAG, "record: invalid arg %p %p", event, event_subtopic);
@@ -75,27 +90,27 @@ esp_err_t mq_client::record_stuff(rpc::base_event *event, const char *event_subt
     return ESP_OK;
 }
 
-esp_err_t mq_client::record_erase(rpc::erase_event *erase_evt)
+esp_err_t mq_client::record_erase(rpc::report::erase_event *erase_evt)
 {
     return record_stuff(erase_evt, TOPIC_REPORT_ERASE);
 }
 
-esp_err_t mq_client::record_program(rpc::prog_event *prog_evt)
+esp_err_t mq_client::record_program(rpc::report::prog_event *prog_evt)
 {
     return record_stuff(prog_evt, TOPIC_REPORT_PROG);
 }
 
-esp_err_t mq_client::record_self_test(rpc::self_test_event *test_evt, uint8_t *result_payload, size_t payload_len)
+esp_err_t mq_client::record_self_test(rpc::report::self_test_event *test_evt, uint8_t *result_payload, size_t payload_len)
 {
     return record_stuff(test_evt, TOPIC_REPORT_SELF_TEST);
 }
 
-esp_err_t mq_client::record_repair(rpc::repair_event *repair_evt)
+esp_err_t mq_client::record_repair(rpc::report::repair_event *repair_evt)
 {
     return record_stuff(repair_evt, TOPIC_REPORT_REPAIR);
 }
 
-esp_err_t mq_client::record_dispose(rpc::repair_event *repair_evt)
+esp_err_t mq_client::record_dispose(rpc::report::repair_event *repair_evt)
 {
     return record_stuff(repair_evt, TOPIC_REPORT_DISPOSE);
 }
@@ -116,17 +131,28 @@ void mq_client::mq_event_handler(void *handler_args, esp_event_base_t base, int3
         case MQTT_EVENT_CONNECTED: {
             if (ctx->subscribe_on_connect() != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to subscribe, disconnect now!");
+                xEventGroupClearBits(ctx->mqtt_state, MQ_STATE_REGISTERED);
                 esp_mqtt_client_disconnect(mqtt_evt->client);
             } else {
                 ESP_LOGI(TAG, "Subscribe OK");
+                xEventGroupSetBits(ctx->mqtt_state, MQ_STATE_REGISTERED);
             }
 
             break;
         }
 
         case MQTT_EVENT_DISCONNECTED: {
+            ESP_LOGW(TAG, "MQTT Disconnected!");
+            if ((xEventGroupGetBits(ctx->mqtt_state) & MQ_STATE_FORCE_DISCONNECT) == 0) {
+                ESP_LOGI(TAG, "Eagerly reconnecting...");
+                auto ret = esp_mqtt_client_reconnect(ctx->mqtt_handle);
+                if (ret != ESP_OK) {
+                    ESP_LOGE(TAG, "Reconnect fail, 0x%x %s", ret, esp_err_to_name(ret));
+                }
+            }
             break;
         }
+
         case MQTT_EVENT_SUBSCRIBED: {
             break;
         }
@@ -140,6 +166,7 @@ void mq_client::mq_event_handler(void *handler_args, esp_event_base_t base, int3
             break;
         }
         case MQTT_EVENT_BEFORE_CONNECT: {
+            xEventGroupClearBits(ctx->mqtt_state, MQ_STATE_REGISTERED);
             break;
         }
         case MQTT_EVENT_DELETED: {
@@ -168,13 +195,13 @@ esp_err_t mq_client::subscribe_on_connect()
     topics[1].qos = 2;
     memset(topic_str, 0, sizeof(topic_str));
 
-    snprintf(topic_str, sizeof(topic_str), "%s/" MACSTR "/%s", TOPIC_CMD_BASE, MAC2STR(host_sn), TOPIC_CMD_BIN_FIRMWARE);
+    snprintf(topic_str, sizeof(topic_str), "%s/" MACSTR "/%s", TOPIC_CMD_BASE, MAC2STR(host_sn), TOPIC_CMD_METADATA_FIRMWARE);
     topic_str[sizeof(topic_str) - 1] = '\0';
     topics[2].filter = strdup((const char *)topics);
     topics[2].qos = 2;
     memset(topic_str, 0, sizeof(topic_str));
 
-    snprintf(topic_str, sizeof(topic_str), "%s/" MACSTR "/%s", TOPIC_CMD_BASE, MAC2STR(host_sn), TOPIC_CMD_BIN_FLASH_ALGO);
+    snprintf(topic_str, sizeof(topic_str), "%s/" MACSTR "/%s", TOPIC_CMD_BASE, MAC2STR(host_sn), TOPIC_CMD_METADATA_FLASH_ALGO);
     topic_str[sizeof(topic_str) - 1] = '\0';
     topics[3].filter = strdup((const char *)topics);
     topics[3].qos = 2;

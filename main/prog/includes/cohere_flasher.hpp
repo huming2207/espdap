@@ -33,6 +33,7 @@ public:
 
 public:
     esp_err_t init();
+    esp_err_t decode_message(const char *topic, uint8_t *buf, size_t len);
 
 private:
     esp_err_t on_check_binary();

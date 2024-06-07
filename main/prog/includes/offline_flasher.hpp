@@ -26,10 +26,10 @@ namespace flasher
 class offline_flasher
 {
 public:
-    static offline_flasher& instance()
+    static offline_flasher *instance()
     {
         static offline_flasher instance;
-        return instance;
+        return &instance;
     }
 
     offline_flasher(offline_flasher const &) = delete;
