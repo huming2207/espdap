@@ -5,6 +5,7 @@
 #include <esp_mac.h>
 #include "rpc_report_packet.hpp"
 #include "rpc_cmd_packet.hpp"
+#include "cohere_flasher.hpp"
 
 esp_err_t mq_client::init(esp_mqtt_client_config_t *_mqtt_cfg)
 {
@@ -41,7 +42,7 @@ esp_err_t mq_client::disconnect()
     return esp_mqtt_client_disconnect(mqtt_handle);
 }
 
-esp_err_t mq_client::record_stuff(rpc::report::base_event *event, const char *event_subtopic)
+esp_err_t mq_client::report_stuff(rpc::report::base_event *event, const char *event_subtopic)
 {
     if (event_subtopic == nullptr) {
         ESP_LOGE(TAG, "record: invalid arg %p %p", event, event_subtopic);
@@ -92,32 +93,37 @@ esp_err_t mq_client::record_stuff(rpc::report::base_event *event, const char *ev
 
 esp_err_t mq_client::report_init(rpc::report::init_event *init_evt)
 {
-    return record_stuff(init_evt, TOPIC_REPORT_INIT);
+    return report_stuff(init_evt, TOPIC_REPORT_INIT);
+}
+
+esp_err_t mq_client::report_error(rpc::report::error_event *error_evt)
+{
+    return report_stuff(error_evt, TOPIC_REPORT_ERROR);
 }
 
 esp_err_t mq_client::report_erase(rpc::report::erase_event *erase_evt)
 {
-    return record_stuff(erase_evt, TOPIC_REPORT_ERASE);
+    return report_stuff(erase_evt, TOPIC_REPORT_ERASE);
 }
 
 esp_err_t mq_client::report_program(rpc::report::prog_event *prog_evt)
 {
-    return record_stuff(prog_evt, TOPIC_REPORT_PROG);
+    return report_stuff(prog_evt, TOPIC_REPORT_PROG);
 }
 
 esp_err_t mq_client::report_self_test(rpc::report::self_test_event *test_evt, uint8_t *result_payload, size_t payload_len)
 {
-    return record_stuff(test_evt, TOPIC_REPORT_SELF_TEST);
+    return report_stuff(test_evt, TOPIC_REPORT_SELF_TEST);
 }
 
 esp_err_t mq_client::report_repair(rpc::report::repair_event *repair_evt)
 {
-    return record_stuff(repair_evt, TOPIC_REPORT_REPAIR);
+    return report_stuff(repair_evt, TOPIC_REPORT_REPAIR);
 }
 
 esp_err_t mq_client::report_dispose(rpc::report::repair_event *repair_evt)
 {
-    return record_stuff(repair_evt, TOPIC_REPORT_DISPOSE);
+    return report_stuff(repair_evt, TOPIC_REPORT_DISPOSE);
 }
 
 void mq_client::mq_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
@@ -168,6 +174,9 @@ void mq_client::mq_event_handler(void *handler_args, esp_event_base_t base, int3
             break;
         }
         case MQTT_EVENT_DATA: {
+            cohere_flasher::instance()->decode_message(mqtt_evt->topic, mqtt_evt->topic_len,
+                                                       (uint8_t *)(mqtt_evt->data), mqtt_evt->data_len);
+
             break;
         }
         case MQTT_EVENT_BEFORE_CONNECT: {

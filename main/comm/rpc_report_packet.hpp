@@ -55,6 +55,47 @@ namespace rpc::report
         uint8_t firmware_hash[32]{};
     };
 
+
+    /**
+     * General error event
+     *
+     * @remark "code" - Error code in esp_err_t, 0 means OK (but should not be reported)
+     * @remark "msg" - Message in string
+     * @remark "sn" - Serial number detected from target product
+     */
+    struct error_event : public base_event
+    {
+    public:
+        size_t get_serialized_size() override
+        {
+            document.clear();
+            document["msg"] = msg_str;
+            document["code"] = err_code;
+            if (target_sn_len != 0) {
+                document["sn"] = ArduinoJson::MsgPackBinary(target_sn, target_sn_len);
+            }
+
+            return ArduinoJson::measureMsgPack(document);
+        };
+
+        size_t serialize(uint8_t *buf_out, size_t buf_size) override
+        {
+            document.clear();
+            document["msg"] = msg_str;
+            document["code"] = err_code;
+            if (target_sn_len != 0) {
+                document["sn"] = ArduinoJson::MsgPackBinary(target_sn, target_sn_len);
+            }
+            return ArduinoJson::serializeMsgPack(document, (void *)buf_out, buf_size);
+        }
+
+    public:
+        size_t target_sn_len = 0;
+        uint8_t target_sn[32]{};
+        esp_err_t err_code = ESP_OK;
+        char *msg_str = nullptr;
+    };
+
     /**
      * Program event after triggered by CMD_SET_STATE
      *

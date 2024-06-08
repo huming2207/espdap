@@ -41,6 +41,7 @@ public:
 
 public:
     esp_err_t report_init(rpc::report::init_event *init_evt);
+    esp_err_t report_error(rpc::report::error_event *error_evt);
     esp_err_t report_erase(rpc::report::erase_event *erase_evt);
     esp_err_t report_program(rpc::report::prog_event *prog_evt);
     esp_err_t report_self_test(rpc::report::self_test_event *test_evt, uint8_t *result_payload, size_t payload_len);
@@ -58,12 +59,13 @@ private:
 
 private:
     static void mq_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
-    esp_err_t record_stuff(rpc::report::base_event *event, const char *event_subtopic);
+    esp_err_t report_stuff(rpc::report::base_event *event, const char *event_subtopic);
 
 private:
     static_char TAG[] = "si_mqtt";
     static_char TOPIC_REPORT_BASE[] = "/soulinjector/v1/report";
     static_char TOPIC_REPORT_INIT[] = "init";
+    static_char TOPIC_REPORT_ERROR[] = "err";
     static_char TOPIC_REPORT_PROG[] = "prog";
     static_char TOPIC_REPORT_SELF_TEST[] = "test/int";
     static_char TOPIC_REPORT_EXTN_TEST[] = "test/ext";
