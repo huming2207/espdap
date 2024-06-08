@@ -90,27 +90,32 @@ esp_err_t mq_client::record_stuff(rpc::report::base_event *event, const char *ev
     return ESP_OK;
 }
 
-esp_err_t mq_client::record_erase(rpc::report::erase_event *erase_evt)
+esp_err_t mq_client::report_init(rpc::report::init_event *init_evt)
+{
+    return record_stuff(init_evt, TOPIC_REPORT_INIT);
+}
+
+esp_err_t mq_client::report_erase(rpc::report::erase_event *erase_evt)
 {
     return record_stuff(erase_evt, TOPIC_REPORT_ERASE);
 }
 
-esp_err_t mq_client::record_program(rpc::report::prog_event *prog_evt)
+esp_err_t mq_client::report_program(rpc::report::prog_event *prog_evt)
 {
     return record_stuff(prog_evt, TOPIC_REPORT_PROG);
 }
 
-esp_err_t mq_client::record_self_test(rpc::report::self_test_event *test_evt, uint8_t *result_payload, size_t payload_len)
+esp_err_t mq_client::report_self_test(rpc::report::self_test_event *test_evt, uint8_t *result_payload, size_t payload_len)
 {
     return record_stuff(test_evt, TOPIC_REPORT_SELF_TEST);
 }
 
-esp_err_t mq_client::record_repair(rpc::report::repair_event *repair_evt)
+esp_err_t mq_client::report_repair(rpc::report::repair_event *repair_evt)
 {
     return record_stuff(repair_evt, TOPIC_REPORT_REPAIR);
 }
 
-esp_err_t mq_client::record_dispose(rpc::report::repair_event *repair_evt)
+esp_err_t mq_client::report_dispose(rpc::report::repair_event *repair_evt)
 {
     return record_stuff(repair_evt, TOPIC_REPORT_DISPOSE);
 }

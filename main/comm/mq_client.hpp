@@ -40,11 +40,12 @@ public:
     esp_err_t disconnect();
 
 public:
-    esp_err_t record_erase(rpc::report::erase_event *erase_evt);
-    esp_err_t record_program(rpc::report::prog_event *prog_evt);
-    esp_err_t record_self_test(rpc::report::self_test_event *test_evt, uint8_t *result_payload, size_t payload_len);
-    esp_err_t record_repair(rpc::report::repair_event *repair_evt);
-    esp_err_t record_dispose(rpc::report::repair_event *repair_evt);
+    esp_err_t report_init(rpc::report::init_event *init_evt);
+    esp_err_t report_erase(rpc::report::erase_event *erase_evt);
+    esp_err_t report_program(rpc::report::prog_event *prog_evt);
+    esp_err_t report_self_test(rpc::report::self_test_event *test_evt, uint8_t *result_payload, size_t payload_len);
+    esp_err_t report_repair(rpc::report::repair_event *repair_evt);
+    esp_err_t report_dispose(rpc::report::repair_event *repair_evt);
 
 public:
     esp_err_t subscribe_on_connect();
@@ -62,6 +63,7 @@ private:
 private:
     static_char TAG[] = "si_mqtt";
     static_char TOPIC_REPORT_BASE[] = "/soulinjector/v1/report";
+    static_char TOPIC_REPORT_INIT[] = "init";
     static_char TOPIC_REPORT_PROG[] = "prog";
     static_char TOPIC_REPORT_SELF_TEST[] = "test/int";
     static_char TOPIC_REPORT_EXTN_TEST[] = "test/ext";
