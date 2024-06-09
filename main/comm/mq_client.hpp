@@ -2,12 +2,12 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
+#include <freertos/queue.h>
 #include <esp_err.h>
 #include <multi_heap.h>
 #include "rpc_report_packet.hpp"
 #include "mqtt_client.h"
 
-#define static_char static const constexpr char
 
 class mq_client
 {
@@ -27,6 +27,22 @@ public:
         MQ_STATE_CONNECTED = BIT(1),
         MQ_STATE_SUBSCRIBED = BIT(2),
         MQ_STATE_REGISTERED = (MQ_STATE_CONNECTED | MQ_STATE_SUBSCRIBED),
+    };
+
+    enum cmd_type : uint32_t {
+        MQ_CMD_META_FW,
+        MQ_CMD_META_ALGO,
+        MQ_CMD_BIN_FW,
+        MQ_CMD_BIN_ALGO,
+        MQ_CMD_SET_STATE,
+        MQ_CMD_READ_MEM,
+    };
+
+    struct __attribute__((packed)) mq_cmd_pkt {
+        cmd_type type;
+        uint8_t *blob;
+        uint32_t state;
+        size_t blob_len;
     };
 
 private:
@@ -55,30 +71,14 @@ private:
     EventGroupHandle_t mqtt_state = nullptr;
     esp_mqtt_client_handle_t mqtt_handle = nullptr;
     esp_mqtt_client_config_t mqtt_cfg = {};
-    char host_sn[16] = {};
+    QueueHandle_t cmd_queue = nullptr;
+    uint8_t host_sn[6] = {};
 
 private:
     static void mq_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
     esp_err_t report_stuff(rpc::report::base_event *event, const char *event_subtopic);
+    esp_err_t decode_cmd_msg(const char *topic, size_t topic_len, uint8_t *buf, size_t buf_len);
 
 private:
-    static_char TAG[] = "si_mqtt";
-    static_char TOPIC_REPORT_BASE[] = "/soulinjector/v1/report";
-    static_char TOPIC_REPORT_INIT[] = "init";
-    static_char TOPIC_REPORT_ERROR[] = "err";
-    static_char TOPIC_REPORT_PROG[] = "prog";
-    static_char TOPIC_REPORT_SELF_TEST[] = "test/int";
-    static_char TOPIC_REPORT_EXTN_TEST[] = "test/ext";
-    static_char TOPIC_REPORT_ERASE[] = "erase";
-    static_char TOPIC_REPORT_REPAIR[] = "repair";
-    static_char TOPIC_REPORT_DISPOSE[] = "dispose";
-
-public:
-    static_char TOPIC_CMD_BASE[] = "/soulinjector/v1/cmd";
-    static_char TOPIC_CMD_METADATA_FIRMWARE[] = "meta/fw";
-    static_char TOPIC_CMD_METADATA_FLASH_ALGO[] = "meta/algo";
-    static_char TOPIC_CMD_BIN_FIRMWARE[] = "bin/fw";
-    static_char TOPIC_CMD_BIN_FLASH_ALGO[] = "bin/algo";
-    static_char TOPIC_CMD_SET_STATE[] = "state";
-    static_char TOPIC_CMD_READ_MEM[] = "read_mem";
+    static const constexpr char TAG[] = "si_mqtt";
 };
