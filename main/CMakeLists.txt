@@ -15,7 +15,7 @@ idf_component_register(
             "comm/rpc_cmd_packet.hpp" "comm/rpc_report_packet.hpp"
             "bootstrap_fsm.cpp" "bootstrap_fsm.hpp"
             "misc/includes/psram_json_allocator.hpp"
-            "misc/config_loader.cpp" "misc/includes/config_loader.hpp"
+            "misc/config_reader.cpp" "misc/includes/config_reader.hpp"
             "misc/includes/json_file_reader.hpp"
             "driver/button_manager.cpp" "driver/button_manager.hpp"
             "driver/lcd/display_manager.cpp" "driver/lcd/display_manager.hpp"
