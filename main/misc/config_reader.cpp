@@ -7,18 +7,10 @@
 
 esp_err_t config_reader::load()
 {
-    using namespace ArduinoJson;
-
     auto ret = cfg_reader.load(CFG_FILE);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to load config file: 0x%x, %s", ret, esp_err_to_name(ret));
         return ret;
-    }
-
-    auto json_ret = deserializeJson(json_doc, cfg_reader);
-    if (json_ret != DeserializationError::Ok) {
-        ESP_LOGE(TAG, "Failed to parse config JSON: %d %s", json_ret.code(), json_ret.c_str());
-        return ESP_ERR_INVALID_STATE;
     }
 
     ret = esp_efuse_mac_get_default(mac_addr);
@@ -33,7 +25,7 @@ esp_err_t config_reader::load()
 
     full_sn[sizeof(full_sn) - 1] = '\0';
 
-    return ESP_OK;
+    return reload_config();
 }
 
 esp_err_t config_reader::get_wifi_cred(wifi_config_t *cred)
@@ -67,7 +59,7 @@ esp_err_t config_reader::get_mqtt_cred(config::mqtt_cred &mq_cred)
 
     std::string client_id = {};
     if (json_doc["mqtt"]["client_id"]) {
-        client_id = json_doc["mqtt"]["client_id"];
+        client_id = std::string(json_doc["mqtt"]["client_id"]);
     } else {
         client_id = "soul-";
         client_id += full_sn;
@@ -96,6 +88,25 @@ esp_err_t config_reader::get_mac_addr(uint8_t *mac_out)
     }
 
     memcpy(mac_out, mac_addr, sizeof(mac_addr));
+    return ESP_OK;
+}
+
+esp_err_t config_reader::reload_config()
+{
+    auto json_ret = ArduinoJson::deserializeJson(json_doc, cfg_reader);
+    if (json_ret != ArduinoJson::DeserializationError::Ok) {
+        ESP_LOGE(TAG, "Failed to parse config JSON: %d %s", json_ret.code(), json_ret.c_str());
+
+        if (json_ret == ArduinoJson::DeserializationError::EmptyInput
+            || json_ret == ArduinoJson::DeserializationError::IncompleteInput || json_ret == ArduinoJson::DeserializationError::InvalidInput) {
+            return ESP_ERR_NOT_SUPPORTED;
+        } else if (json_ret == ArduinoJson::DeserializationError::NoMemory || json_ret == ArduinoJson::DeserializationError::TooDeep) {
+            return ESP_ERR_NO_MEM;
+        }
+
+        return ESP_ERR_INVALID_STATE;
+    }
+
     return ESP_OK;
 }
 
