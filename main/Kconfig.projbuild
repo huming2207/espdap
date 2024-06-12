@@ -206,4 +206,10 @@ menu "Soul Injector Configuration"
             prompt "SK6812 (RGB, no white)"
     endchoice
 
+    config SI_MQ_RECV_TIMEOUT
+        int "MQ client: Receive timeout in millisecond"
+        default 3000
+        help
+            General receive timeout in millisecond, used in MQ command queue
+
 endmenu

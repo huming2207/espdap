@@ -273,37 +273,56 @@ esp_err_t mq_client::decode_cmd_msg(const char *topic, size_t topic_len, uint8_t
         return ESP_ERR_NOT_SUPPORTED;
     }
 
-    PsRamAllocator allocator = {};
-    auto json_doc = ArduinoJson::JsonDocument(&allocator);
-
-    if (buf != nullptr && buf_len > 0) {
-        auto err = ArduinoJson::deserializeMsgPack(json_doc, buf, buf_len);
-        if (err == ArduinoJson::DeserializationError::EmptyInput
-            || err == ArduinoJson::DeserializationError::IncompleteInput || err == ArduinoJson::DeserializationError::InvalidInput) {
-            ESP_LOGE(TAG, "Failed to decode CMD payload: %s", err.c_str());
-            return ESP_ERR_NOT_SUPPORTED;
-        } else if (err == ArduinoJson::DeserializationError::NoMemory || err == ArduinoJson::DeserializationError::TooDeep) {
-            ESP_LOGE(TAG, "No memory to handle CMD payload: %s", err.c_str());
-            return ESP_ERR_NO_MEM;
-        }
-    }
+//    PsRamAllocator allocator = {};
+//    auto json_doc = ArduinoJson::JsonDocument(&allocator);
+//
+//    if (buf != nullptr && buf_len > 0) {
+//        auto err = ArduinoJson::deserializeMsgPack(json_doc, buf, buf_len);
+//        if (err == ArduinoJson::DeserializationError::EmptyInput
+//            || err == ArduinoJson::DeserializationError::IncompleteInput || err == ArduinoJson::DeserializationError::InvalidInput) {
+//            ESP_LOGE(TAG, "Failed to decode CMD payload: %s", err.c_str());
+//            return ESP_ERR_NOT_SUPPORTED;
+//        } else if (err == ArduinoJson::DeserializationError::NoMemory || err == ArduinoJson::DeserializationError::TooDeep) {
+//            ESP_LOGE(TAG, "No memory to handle CMD payload: %s", err.c_str());
+//            return ESP_ERR_NO_MEM;
+//        }
+//    }
 
     // Check topic type & decode accordingly
+    mq_cmd_pkt cmd = {};
+    esp_err_t ret = ESP_OK;
     if (strnstr(topic, mq::TOPIC_CMD_METADATA_FIRMWARE, std::min(sizeof(mq::TOPIC_CMD_METADATA_FIRMWARE), topic_len)) != nullptr) {
-
+        ret = make_mq_cmd_packet(&cmd, MQ_CMD_META_FW, buf, buf_len);
     } else if (strnstr(topic, mq::TOPIC_CMD_METADATA_FLASH_ALGO, std::min(sizeof(mq::TOPIC_CMD_METADATA_FLASH_ALGO), topic_len)) != nullptr) {
-
+        ret = make_mq_cmd_packet(&cmd, MQ_CMD_META_ALGO, buf, buf_len);
     } else if (strnstr(topic, mq::TOPIC_CMD_BIN_FIRMWARE, std::min(sizeof(mq::TOPIC_CMD_BIN_FIRMWARE), topic_len)) != nullptr) {
-
+        ret = make_mq_cmd_packet(&cmd, MQ_CMD_BIN_FW, buf, buf_len);
     } else if (strnstr(topic, mq::TOPIC_CMD_BIN_FLASH_ALGO, std::min(sizeof(mq::TOPIC_CMD_BIN_FLASH_ALGO), topic_len)) != nullptr) {
-
+        ret = make_mq_cmd_packet(&cmd, MQ_CMD_BIN_ALGO, buf, buf_len);
     } else if (strnstr(topic, mq::TOPIC_CMD_READ_MEM, std::min(sizeof(mq::TOPIC_CMD_READ_MEM), topic_len)) != nullptr) {
-
+        ret = make_mq_cmd_packet(&cmd, MQ_CMD_READ_MEM, buf, buf_len);
     } else if (strnstr(topic, mq::TOPIC_CMD_SET_STATE, std::min(sizeof(mq::TOPIC_CMD_SET_STATE), topic_len)) != nullptr) {
-
+        ret = make_mq_cmd_packet(&cmd, MQ_CMD_SET_STATE, buf, buf_len);
     } else {
-
+        ret = ESP_ERR_NOT_SUPPORTED;
     }
 
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    if (xQueueSend(cmd_queue, &cmd, pdMS_TO_TICKS(CONFIG_SI_MQ_RECV_TIMEOUT)) == pdFALSE) {
+        ESP_LOGE(TAG, "CMD queue full!");
+        return ESP_ERR_TIMEOUT;
+    }
     return 0;
+}
+
+esp_err_t mq_client::recv_cmd_packet(mq_client::mq_cmd_pkt *cmd_pkt, uint32_t timeout_ticks)
+{
+    if (cmd_pkt == nullptr) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    return xQueueReceive(cmd_queue, cmd_pkt, timeout_ticks) == pdTRUE ? ESP_OK : ESP_ERR_TIMEOUT;
 }
