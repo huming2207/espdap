@@ -45,10 +45,9 @@ public:
 
     struct __attribute__((packed)) mq_cmd_pkt {
         cmd_type type;
+        size_t payload_len;
         uint8_t *blob;
-        size_t blob_len;
         uint8_t buf[128]; // For small buffer, to avoid too much small alloc ops
-        size_t buf_len;
     };
 
     static esp_err_t make_mq_cmd_packet(mq_cmd_pkt *pkt_out, cmd_type type, uint8_t *buf, size_t buf_len)
@@ -65,18 +64,15 @@ public:
 
         if (buf_len > sizeof(mq_cmd_pkt::buf)) {
             pkt_out->blob = (uint8_t *)heap_caps_calloc(1, buf_len, MALLOC_CAP_SPIRAM);
-            pkt_out->blob_len = buf_len;
             if (pkt_out->blob == nullptr) {
                 ESP_LOGE(TAG, "Failed to alloc BLOB in cmd packet, len=%u", buf_len);
                 return ESP_ERR_NO_MEM;
             }
-            pkt_out->buf_len = 0;
         } else {
-            pkt_out->blob_len = 0;
-            pkt_out->buf_len = buf_len;
             memcpy(pkt_out->buf, buf, buf_len);
         }
 
+        pkt_out->payload_len = buf_len;
         return ESP_OK;
     };
 

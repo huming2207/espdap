@@ -29,7 +29,7 @@ esp_err_t mq_client::init(esp_mqtt_client_config_t *_mqtt_cfg)
         return ret;
     }
 
-    cmd_queue = xQueueCreateWithCaps(16, sizeof(mq_cmd_pkt), MALLOC_CAP_SPIRAM);
+    cmd_queue = xQueueCreateWithCaps(32, sizeof(mq_cmd_pkt), MALLOC_CAP_SPIRAM);
     if (cmd_queue == nullptr) {
         ESP_LOGE(TAG, "Failed to create cmd queue");
         return ESP_ERR_NO_MEM;
@@ -276,8 +276,8 @@ esp_err_t mq_client::decode_cmd_msg(const char *topic, size_t topic_len, uint8_t
 //    PsRamAllocator allocator = {};
 //    auto json_doc = ArduinoJson::JsonDocument(&allocator);
 //
-//    if (buf != nullptr && buf_len > 0) {
-//        auto err = ArduinoJson::deserializeMsgPack(json_doc, buf, buf_len);
+//    if (buf != nullptr && payload_len > 0) {
+//        auto err = ArduinoJson::deserializeMsgPack(json_doc, buf, payload_len);
 //        if (err == ArduinoJson::DeserializationError::EmptyInput
 //            || err == ArduinoJson::DeserializationError::IncompleteInput || err == ArduinoJson::DeserializationError::InvalidInput) {
 //            ESP_LOGE(TAG, "Failed to decode CMD payload: %s", err.c_str());
