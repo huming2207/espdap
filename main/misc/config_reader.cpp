@@ -110,3 +110,22 @@ esp_err_t config_reader::reload_config()
     return ESP_OK;
 }
 
+void config_reader::get_full_sn_str(char *sn_out, size_t buf_len)
+{
+    if (sn_out == nullptr || buf_len == 0) {
+        return;
+    }
+
+    memcpy(sn_out, full_sn, std::min(buf_len, sizeof(full_sn)));
+}
+
+void config_reader::get_full_sn_byte(uint8_t *buf, size_t buf_len)
+{
+    if (buf == nullptr || buf_len == 0) {
+        return;
+    }
+
+    memcpy(buf, mac_addr, std::min(buf_len - sizeof(flash_sn), sizeof(mac_addr)));
+    memcpy(buf + sizeof(mac_addr), &flash_sn, std::min(buf_len - sizeof(mac_addr), sizeof(flash_sn)));
+}
+
