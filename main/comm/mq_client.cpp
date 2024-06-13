@@ -207,30 +207,30 @@ void mq_client::mq_event_handler(void *handler_args, esp_event_base_t base, int3
 
 esp_err_t mq_client::subscribe_on_connect()
 {
-    char topic_str[sizeof(mq::TOPIC_CMD_BASE) + sizeof(host_sn) + 16] = {};
+    char topic_str[sizeof(mq::TOPIC_CMD_BASE) + (sizeof(host_sn) * 2) + 16] = {};
     esp_mqtt_topic_t topics[4] = {};
 
     snprintf(topic_str, sizeof(topic_str), "%s/" MACSTR "/%s", mq::TOPIC_CMD_BASE, MAC2STR(host_sn), mq::TOPIC_CMD_READ_MEM);
     topic_str[sizeof(topic_str) - 1] = '\0';
-    topics[0].filter = strdup((const char *)topics);
+    topics[0].filter = strdup((const char *)topic_str);
     topics[0].qos = 2;
     memset(topic_str, 0, sizeof(topic_str));
 
     snprintf(topic_str, sizeof(topic_str), "%s/" MACSTR "/%s", mq::TOPIC_CMD_BASE, MAC2STR(host_sn), mq::TOPIC_CMD_SET_STATE);
     topic_str[sizeof(topic_str) - 1] = '\0';
-    topics[1].filter = strdup((const char *)topics);
+    topics[1].filter = strdup((const char *)topic_str);
     topics[1].qos = 2;
     memset(topic_str, 0, sizeof(topic_str));
 
     snprintf(topic_str, sizeof(topic_str), "%s/" MACSTR "/%s", mq::TOPIC_CMD_BASE, MAC2STR(host_sn), mq::TOPIC_CMD_METADATA_FIRMWARE);
     topic_str[sizeof(topic_str) - 1] = '\0';
-    topics[2].filter = strdup((const char *)topics);
+    topics[2].filter = strdup((const char *)topic_str);
     topics[2].qos = 2;
     memset(topic_str, 0, sizeof(topic_str));
 
     snprintf(topic_str, sizeof(topic_str), "%s/" MACSTR "/%s", mq::TOPIC_CMD_BASE, MAC2STR(host_sn), mq::TOPIC_CMD_METADATA_FLASH_ALGO);
     topic_str[sizeof(topic_str) - 1] = '\0';
-    topics[3].filter = strdup((const char *)topics);
+    topics[3].filter = strdup((const char *)topic_str);
     topics[3].qos = 2;
     memset(topic_str, 0, sizeof(topic_str));
 
