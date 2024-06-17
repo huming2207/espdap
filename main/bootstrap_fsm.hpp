@@ -1,6 +1,9 @@
 #pragma once
 
 #include <esp_err.h>
+#include "config_reader.hpp"
+#include "wifi_manager.hpp"
+#include "mqtt_client.hpp"
 
 class bootstrap_fsm
 {
@@ -18,7 +21,19 @@ private:
     bootstrap_fsm() = default;
 
 public:
+    esp_err_t init();
+
+private:
     esp_err_t init_load_config();
     esp_err_t init_mq_client();
+    esp_err_t init_connect_wifi();
+
+private:
+    config_reader *cfg_reader = config_reader::instance();
+    wifi_manager wifi = {};
+    mqtt_client mq_client = {};
+
+private:
+    static const constexpr char TAG[] = "bootstrap_fsm"
 };
 

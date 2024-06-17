@@ -11,7 +11,7 @@ idf_component_register(
             "misc/includes/file_utils.hpp"
             "comm/comm_msc.cpp" "comm/comm_msc.hpp"
             "comm/wifi_manager.cpp" "comm/wifi_manager.hpp"
-            "comm/mq_client.cpp" "comm/mq_client.hpp" "comm/mq_defs.hpp"
+            "comm/mqtt_client.cpp" "comm/mqtt_client.hpp" "comm/mq_defs.hpp"
             "comm/rpc_cmd_packet.hpp" "comm/rpc_report_packet.hpp"
             "bootstrap_fsm.cpp" "bootstrap_fsm.hpp"
             "misc/includes/psram_json_allocator.hpp"

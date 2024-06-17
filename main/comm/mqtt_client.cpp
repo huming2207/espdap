@@ -1,5 +1,5 @@
 #include <multi_heap.h>
-#include <mq_client.hpp>
+#include <mqtt_client.hpp>
 #include <esp_efuse.h>
 #include <esp_http_client.h>
 #include <esp_mac.h>
@@ -9,7 +9,7 @@
 #include "cohere_flasher.hpp"
 #include "mq_defs.hpp"
 
-esp_err_t mq_client::init(esp_mqtt_client_config_t *_mqtt_cfg)
+esp_err_t mqtt_client::init(esp_mqtt_client_config_t *_mqtt_cfg)
 {
     memcpy(&mqtt_cfg, _mqtt_cfg, sizeof(esp_mqtt_client_config_t));
     mqtt_handle = esp_mqtt_client_init(&mqtt_cfg);
@@ -38,7 +38,7 @@ esp_err_t mq_client::init(esp_mqtt_client_config_t *_mqtt_cfg)
     return esp_mqtt_client_register_event(mqtt_handle, MQTT_EVENT_ANY, mq_event_handler, this);;
 }
 
-esp_err_t mq_client::connect()
+esp_err_t mqtt_client::connect()
 {
     if (mqtt_state != nullptr) {
         xEventGroupClearBits(mqtt_state, MQ_STATE_FORCE_DISCONNECT);
@@ -47,7 +47,7 @@ esp_err_t mq_client::connect()
     return esp_mqtt_client_start(mqtt_handle);
 }
 
-esp_err_t mq_client::disconnect()
+esp_err_t mqtt_client::disconnect()
 {
     if (mqtt_state != nullptr) {
         xEventGroupSetBits(mqtt_state, MQ_STATE_FORCE_DISCONNECT);
@@ -56,7 +56,7 @@ esp_err_t mq_client::disconnect()
     return esp_mqtt_client_disconnect(mqtt_handle);
 }
 
-esp_err_t mq_client::report_stuff(rpc::report::base_event *event, const char *event_subtopic)
+esp_err_t mqtt_client::report_stuff(rpc::report::base_event *event, const char *event_subtopic)
 {
     if (event_subtopic == nullptr) {
         ESP_LOGE(TAG, "record: invalid arg %p %p", event, event_subtopic);
@@ -105,44 +105,44 @@ esp_err_t mq_client::report_stuff(rpc::report::base_event *event, const char *ev
     return ESP_OK;
 }
 
-esp_err_t mq_client::report_init(rpc::report::init_event *init_evt)
+esp_err_t mqtt_client::report_init(rpc::report::init_event *init_evt)
 {
     return report_stuff(init_evt, mq::TOPIC_REPORT_INIT);
 }
 
-esp_err_t mq_client::report_error(rpc::report::error_event *error_evt)
+esp_err_t mqtt_client::report_error(rpc::report::error_event *error_evt)
 {
     return report_stuff(error_evt, mq::TOPIC_REPORT_ERROR);
 }
 
-esp_err_t mq_client::report_erase(rpc::report::erase_event *erase_evt)
+esp_err_t mqtt_client::report_erase(rpc::report::erase_event *erase_evt)
 {
     return report_stuff(erase_evt, mq::TOPIC_REPORT_ERASE);
 }
 
-esp_err_t mq_client::report_program(rpc::report::prog_event *prog_evt)
+esp_err_t mqtt_client::report_program(rpc::report::prog_event *prog_evt)
 {
     return report_stuff(prog_evt, mq::TOPIC_REPORT_PROG);
 }
 
-esp_err_t mq_client::report_self_test(rpc::report::self_test_event *test_evt, uint8_t *result_payload, size_t payload_len)
+esp_err_t mqtt_client::report_self_test(rpc::report::self_test_event *test_evt, uint8_t *result_payload, size_t payload_len)
 {
     return report_stuff(test_evt, mq::TOPIC_REPORT_SELF_TEST);
 }
 
-esp_err_t mq_client::report_repair(rpc::report::repair_event *repair_evt)
+esp_err_t mqtt_client::report_repair(rpc::report::repair_event *repair_evt)
 {
     return report_stuff(repair_evt, mq::TOPIC_REPORT_REPAIR);
 }
 
-esp_err_t mq_client::report_dispose(rpc::report::repair_event *repair_evt)
+esp_err_t mqtt_client::report_dispose(rpc::report::repair_event *repair_evt)
 {
     return report_stuff(repair_evt, mq::TOPIC_REPORT_DISPOSE);
 }
 
-void mq_client::mq_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
+void mqtt_client::mq_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
 {
-    auto *ctx = (mq_client *)handler_args;
+    auto *ctx = (mqtt_client *)handler_args;
     auto *mqtt_evt = (esp_mqtt_event_handle_t)event_data;
 
     if (ctx == nullptr || mqtt_evt == nullptr) {
@@ -205,7 +205,7 @@ void mq_client::mq_event_handler(void *handler_args, esp_event_base_t base, int3
     }
 }
 
-esp_err_t mq_client::subscribe_on_connect()
+esp_err_t mqtt_client::subscribe_on_connect()
 {
     char topic_str[sizeof(mq::TOPIC_CMD_BASE) + (sizeof(host_sn) * 2) + 16] = {};
     esp_mqtt_topic_t topics[4] = {};
@@ -261,7 +261,7 @@ esp_err_t mq_client::subscribe_on_connect()
     }
 }
 
-esp_err_t mq_client::decode_cmd_msg(const char *topic, size_t topic_len, uint8_t *buf, size_t buf_len)
+esp_err_t mqtt_client::decode_cmd_msg(const char *topic, size_t topic_len, uint8_t *buf, size_t buf_len)
 {
     if (topic == nullptr || topic_len < 1) {
         return ESP_ERR_INVALID_ARG;
@@ -318,7 +318,7 @@ esp_err_t mq_client::decode_cmd_msg(const char *topic, size_t topic_len, uint8_t
     return 0;
 }
 
-esp_err_t mq_client::recv_cmd_packet(mq_client::mq_cmd_pkt *cmd_pkt, uint32_t timeout_ticks)
+esp_err_t mqtt_client::recv_cmd_packet(mqtt_client::mq_cmd_pkt *cmd_pkt, uint32_t timeout_ticks)
 {
     if (cmd_pkt == nullptr) {
         return ESP_ERR_INVALID_ARG;

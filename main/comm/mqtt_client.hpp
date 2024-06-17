@@ -10,19 +10,8 @@
 #include "mqtt_client.h"
 
 
-class mq_client
+class mqtt_client
 {
-public:
-    static mq_client *instance()
-    {
-        static mq_client _instance;
-        return &_instance;
-    }
-
-    mq_client(mq_client const &) = delete;
-    void operator=(mq_client const &) = delete;
-
-
 private:
     static const constexpr char TAG[] = "si_mqtt";
 
@@ -75,9 +64,6 @@ public:
         pkt_out->payload_len = buf_len;
         return ESP_OK;
     };
-
-private:
-    mq_client() = default;
 
 public:
     esp_err_t init(esp_mqtt_client_config_t *_mqtt_cfg);
