@@ -21,6 +21,7 @@ public:
         MQ_STATE_CONNECTED = BIT(1),
         MQ_STATE_SUBSCRIBED = BIT(2),
         MQ_STATE_REGISTERED = (MQ_STATE_CONNECTED | MQ_STATE_SUBSCRIBED),
+        MQ_STATE_BIN_REQ_READY = BIT(3),
     };
 
     enum cmd_type : uint32_t {
@@ -81,6 +82,7 @@ public:
     esp_err_t report_repair(rpc::report::repair_event *repair_evt);
     esp_err_t report_dispose(rpc::report::repair_event *repair_evt);
     esp_err_t recv_cmd_packet(mq_cmd_pkt *cmd_pkt, uint32_t timeout_ticks = portMAX_DELAY);
+    esp_err_t request_blob(const char *type, uint32_t offset, size_t expect_blk_len, uint32_t timeout_ticks = portMAX_DELAY);
 
 public:
     esp_err_t subscribe_on_connect();
@@ -90,6 +92,9 @@ private:
     esp_mqtt_client_handle_t mqtt_handle = nullptr;
     esp_mqtt_client_config_t mqtt_cfg = {};
     QueueHandle_t cmd_queue = nullptr;
+    char *request_blob_type = nullptr;
+    uint32_t request_blob_offset = 0;
+    size_t request_blob_max_len = 0;
     uint8_t host_sn[6] = {};
 
 private:

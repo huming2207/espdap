@@ -189,7 +189,6 @@ void mqtt_client::mq_event_handler(void *handler_args, esp_event_base_t base, in
         }
         case MQTT_EVENT_DATA: {
             ctx->decode_cmd_msg(mqtt_evt->topic, mqtt_evt->topic_len, (uint8_t *) (mqtt_evt->data), mqtt_evt->data_len);
-
             break;
         }
         case MQTT_EVENT_BEFORE_CONNECT: {
@@ -326,3 +325,17 @@ esp_err_t mqtt_client::recv_cmd_packet(mqtt_client::mq_cmd_pkt *cmd_pkt, uint32_
 
     return xQueueReceive(cmd_queue, cmd_pkt, timeout_ticks) == pdTRUE ? ESP_OK : ESP_ERR_TIMEOUT;
 }
+
+esp_err_t mqtt_client::request_blob(const char *type, uint32_t offset, size_t expect_blk_len, uint32_t timeout_ticks)
+{
+    if ((xEventGroupWaitBits(mqtt_state, MQ_STATE_BIN_REQ_READY, pdTRUE, pdFALSE, timeout_ticks) & MQ_STATE_BIN_REQ_READY) == 0) {
+        ESP_LOGE(TAG, "Request blob timeout, try again later");
+        return ESP_ERR_TIMEOUT;
+    }
+
+    char topic_str[255] = {};
+    snprintf(topic_str, sizeof(topic_str), "%s/" MACSTR "/%s/%lu/%u", mq::TOPIC_CMD_BASE, MAC2STR(host_sn), type, offset, expect_blk_len);
+
+    return esp_mqtt_client_subscribe_single(mqtt_handle, topic_str, 1);
+}
+
