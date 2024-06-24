@@ -13,6 +13,7 @@ idf_component_register(
             "comm/wifi_manager.cpp" "comm/wifi_manager.hpp"
             "comm/mqtt_client.cpp" "comm/mqtt_client.hpp" "comm/mq_defs.hpp"
             "comm/rpc_cmd_packet.hpp" "comm/rpc_report_packet.hpp"
+            "comm/http_downloader.cpp" "comm/http_downloader.hpp"
             "bootstrap_fsm.cpp" "bootstrap_fsm.hpp"
             "misc/includes/psram_json_allocator.hpp"
             "misc/config_reader.cpp" "misc/includes/config_reader.hpp"
@@ -55,4 +56,5 @@ idf_component_register(
             "esp_http_client"
             "esp-mqtt"
             "mpy_embed"
+            "esp_http_client"
 )
