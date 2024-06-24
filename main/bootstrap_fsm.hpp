@@ -22,11 +22,13 @@ private:
 
 public:
     esp_err_t init();
+    esp_err_t handle_mqtt_cmd();
 
 private:
     esp_err_t init_load_config();
     esp_err_t init_mq_client();
     esp_err_t init_connect_wifi();
+
 
 private:
     config_reader *cfg_reader = config_reader::instance();
@@ -34,6 +36,6 @@ private:
     mqtt_client mq_client = {};
 
 private:
-    static const constexpr char TAG[] = "bootstrap_fsm"
+    static const constexpr char TAG[] = "bootstrap_fsm";
 };
 

@@ -57,3 +57,37 @@ esp_err_t bootstrap_fsm::init()
     return 0;
 }
 
+esp_err_t bootstrap_fsm::handle_mqtt_cmd()
+{
+    mqtt_client::mq_cmd_pkt pkt = {};
+    auto ret = mq_client.recv_cmd_packet(&pkt);
+
+    switch (pkt.type) {
+        case mqtt_client::MQ_CMD_META_FW: {
+            break;
+        }
+
+        case mqtt_client::MQ_CMD_META_ALGO: {
+            break;
+        }
+
+        case mqtt_client::MQ_CMD_BIN_FW: {
+            break;
+        }
+
+        case mqtt_client::MQ_CMD_BIN_ALGO: {
+            break;
+        }
+
+        case mqtt_client::MQ_CMD_SET_STATE: {
+            break;
+        }
+
+        case mqtt_client::MQ_CMD_READ_MEM: {
+            break;
+        }
+    }
+
+    return ret;
+}
+

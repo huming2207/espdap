@@ -295,8 +295,10 @@ esp_err_t mqtt_client::decode_cmd_msg(const char *topic, size_t topic_len, uint8
     } else if (strnstr(topic, mq::TOPIC_CMD_METADATA_FLASH_ALGO, std::min(sizeof(mq::TOPIC_CMD_METADATA_FLASH_ALGO), topic_len)) != nullptr) {
         ret = make_mq_cmd_packet(&cmd, MQ_CMD_META_ALGO, buf, buf_len);
     } else if (strnstr(topic, mq::TOPIC_CMD_BIN_FIRMWARE, std::min(sizeof(mq::TOPIC_CMD_BIN_FIRMWARE), topic_len)) != nullptr) {
+        xEventGroupSetBits(mqtt_state, MQ_STATE_BIN_REQ_READY);
         ret = make_mq_cmd_packet(&cmd, MQ_CMD_BIN_FW, buf, buf_len);
     } else if (strnstr(topic, mq::TOPIC_CMD_BIN_FLASH_ALGO, std::min(sizeof(mq::TOPIC_CMD_BIN_FLASH_ALGO), topic_len)) != nullptr) {
+        xEventGroupSetBits(mqtt_state, MQ_STATE_BIN_REQ_READY);
         ret = make_mq_cmd_packet(&cmd, MQ_CMD_BIN_ALGO, buf, buf_len);
     } else if (strnstr(topic, mq::TOPIC_CMD_READ_MEM, std::min(sizeof(mq::TOPIC_CMD_READ_MEM), topic_len)) != nullptr) {
         ret = make_mq_cmd_packet(&cmd, MQ_CMD_READ_MEM, buf, buf_len);
