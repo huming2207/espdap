@@ -189,3 +189,8 @@ esp_err_t bootstrap_fsm::decode_mqtt_cmd_read_mem(ArduinoJson::JsonDocument &doc
     return 0;
 }
 
+void bootstrap_fsm::fsm_task_handler(void *ctx)
+{
+
+}
+
