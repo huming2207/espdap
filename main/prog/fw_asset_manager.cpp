@@ -176,6 +176,11 @@ std::vector<flash_algo::test_item> &fw_asset_manager::get_test_items()
 
 bool fw_asset_manager::check_fw_bin_hash(uint8_t *sha_expected, size_t len)
 {
+    if (len < 32 || sha_expected == nullptr) {
+        ESP_LOGE(TAG, "Invalid or incomplete SHA2! len=%u", len);
+        return ESP_ERR_INVALID_ARG;
+    }
+
     uint8_t sha_actual[32] = {};
     auto ret = get_sha256_from_file(FIRMWARE_PATH, sha_actual);
     if (ret != ESP_OK) {
@@ -187,6 +192,11 @@ bool fw_asset_manager::check_fw_bin_hash(uint8_t *sha_expected, size_t len)
 
 bool fw_asset_manager::check_algo_bin_hash(uint8_t *sha_expected, size_t len)
 {
+    if (len < 32 || sha_expected == nullptr) {
+        ESP_LOGE(TAG, "Invalid or incomplete SHA2! len=%u", len);
+        return ESP_ERR_INVALID_ARG;
+    }
+
     uint8_t sha_actual[32] = {};
     auto ret = get_sha256_from_file(ALGO_ELF_PATH, sha_actual);
     if (ret != ESP_OK) {

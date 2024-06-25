@@ -110,9 +110,18 @@ esp_err_t mqtt_client::report_init(rpc::report::init_event *init_evt)
     return report_stuff(init_evt, mq::TOPIC_REPORT_INIT);
 }
 
-esp_err_t mqtt_client::report_error(rpc::report::error_event *error_evt)
+esp_err_t mqtt_client::report_host_state(rpc::report::state_event *state_evt)
 {
-    return report_stuff(error_evt, mq::TOPIC_REPORT_ERROR);
+    return report_stuff(state_evt, mq::TOPIC_REPORT_HOST_STATE);
+}
+
+esp_err_t mqtt_client::report_host_state(const char *msg, esp_err_t ret)
+{
+    rpc::report::state_event event = {};
+    event.err_code = ret;
+    event.msg_str = msg;
+
+    return report_host_state(&event);
 }
 
 esp_err_t mqtt_client::report_erase(rpc::report::erase_event *erase_evt)
@@ -272,21 +281,6 @@ esp_err_t mqtt_client::decode_cmd_msg(const char *topic, size_t topic_len, uint8
         return ESP_ERR_NOT_SUPPORTED;
     }
 
-//    PsRamAllocator allocator = {};
-//    auto json_doc = ArduinoJson::JsonDocument(&allocator);
-//
-//    if (buf != nullptr && payload_len > 0) {
-//        auto err = ArduinoJson::deserializeMsgPack(json_doc, buf, payload_len);
-//        if (err == ArduinoJson::DeserializationError::EmptyInput
-//            || err == ArduinoJson::DeserializationError::IncompleteInput || err == ArduinoJson::DeserializationError::InvalidInput) {
-//            ESP_LOGE(TAG, "Failed to decode CMD payload: %s", err.c_str());
-//            return ESP_ERR_NOT_SUPPORTED;
-//        } else if (err == ArduinoJson::DeserializationError::NoMemory || err == ArduinoJson::DeserializationError::TooDeep) {
-//            ESP_LOGE(TAG, "No memory to handle CMD payload: %s", err.c_str());
-//            return ESP_ERR_NO_MEM;
-//        }
-//    }
-
     // Check topic type & decode accordingly
     mq_cmd_pkt cmd = {};
     esp_err_t ret = ESP_OK;
@@ -340,4 +334,3 @@ esp_err_t mqtt_client::request_blob(const char *type, uint32_t offset, size_t ex
 
     return esp_mqtt_client_subscribe_single(mqtt_handle, topic_str, 1);
 }
-

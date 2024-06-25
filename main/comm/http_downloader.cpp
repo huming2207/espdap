@@ -65,7 +65,8 @@ esp_err_t http_downloader::set_post_field(uint8_t *buf, size_t len)
 esp_err_t http_downloader::request(uint32_t timeout_ticks)
 {
     ESP_LOGI(TAG, "Start request fetching stuff!");
-    auto ret = esp_http_client_perform(client_ctx);
+    auto ret = esp_http_client_set_timeout_ms(client_ctx, pdTICKS_TO_MS(timeout_ticks));
+    ret = ret ?: esp_http_client_perform(client_ctx);
     ESP_LOGW(TAG, "End request, ret=0x%x %s", ret, esp_err_to_name(ret));
     if (ret != ESP_OK) {
         return ret;

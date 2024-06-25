@@ -63,7 +63,7 @@ namespace rpc::report
      * @remark "msg" - Message in string
      * @remark "sn" - Serial number detected from target product
      */
-    struct error_event : public base_event
+    struct state_event : public base_event
     {
     public:
         size_t get_serialized_size() override
@@ -93,7 +93,7 @@ namespace rpc::report
         size_t target_sn_len = 0;
         uint8_t target_sn[32]{};
         esp_err_t err_code = ESP_OK;
-        char *msg_str = nullptr;
+        const char *msg_str = nullptr;
     };
 
     /**

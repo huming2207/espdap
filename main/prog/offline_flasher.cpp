@@ -99,7 +99,7 @@ void offline_flasher::on_program()
 
     ui_state::flash_screen flash = {};
     ui_cmder->display_flash(&flash);
-    auto ret = swd->program_file(offline_asset_manager::FIRMWARE_PATH, &written_len);
+    auto ret = swd->program_file(fw_asset_manager::FIRMWARE_PATH, &written_len);
     if (ret != ESP_OK) {
         ui_state::error_screen error = {};
         snprintf(error.subtitle, sizeof(error.subtitle), "Prog failed\nCode: 0x%x", ret);
@@ -135,7 +135,7 @@ void offline_flasher::on_done()
 void offline_flasher::on_verify()
 {
     uint32_t crc = 0;
-    if (offline_asset_manager::instance()->get_fw_crc(&crc) != ESP_OK) {
+    if (fw_asset_manager::instance()->get_fw_crc(&crc) != ESP_OK) {
         state = flasher::ERROR;
         return;
     }

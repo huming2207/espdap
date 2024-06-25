@@ -7,7 +7,7 @@ namespace mq
 
     static_char TOPIC_REPORT_BASE[] = "/soulinjector/v1/report";
     static_char TOPIC_REPORT_INIT[] = "init";
-    static_char TOPIC_REPORT_ERROR[] = "err";
+    static_char TOPIC_REPORT_HOST_STATE[] = "state";
     static_char TOPIC_REPORT_PROG[] = "prog";
     static_char TOPIC_REPORT_SELF_TEST[] = "test/int";
     static_char TOPIC_REPORT_EXTN_TEST[] = "test/ext";

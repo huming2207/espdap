@@ -3,7 +3,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 
-#include <offline_asset_manager.hpp>
+#include <fw_asset_manager.hpp>
 #include <led_ctrl.hpp>
 #include <esp_err.h>
 #include "swd_prog.hpp"
@@ -38,7 +38,7 @@ public:
 private:
     offline_flasher() = default;
     uint32_t written_len = 0;
-    offline_asset_manager *asset = offline_asset_manager::instance();
+    fw_asset_manager *asset = fw_asset_manager::instance();
     swd_prog *swd = swd_prog::instance();
 
     display_manager *disp = display_manager::instance();

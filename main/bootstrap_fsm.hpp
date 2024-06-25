@@ -25,6 +25,14 @@ public:
     esp_err_t handle_mqtt_cmd();
 
 private:
+    esp_err_t decode_mqtt_cmd_meta_fw(ArduinoJson::JsonDocument &doc);
+    esp_err_t decode_mqtt_cmd_meta_algo(ArduinoJson::JsonDocument &doc);
+    esp_err_t decode_mqtt_cmd_bin_fw(ArduinoJson::JsonDocument &doc);
+    esp_err_t decode_mqtt_cmd_bin_algo(ArduinoJson::JsonDocument &doc);
+    esp_err_t decode_mqtt_cmd_set_state(ArduinoJson::JsonDocument &doc);
+    esp_err_t decode_mqtt_cmd_read_mem(ArduinoJson::JsonDocument &doc);
+
+private:
     esp_err_t init_load_config();
     esp_err_t init_mq_client();
     esp_err_t init_connect_wifi();
