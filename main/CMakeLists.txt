@@ -2,7 +2,7 @@ idf_component_register(
         SRCS
             "main.cpp"
             "prog/swd_prog.cpp" "prog/includes/swd_prog.hpp"
-            "prog/offline_asset_manager.cpp" "prog/includes/offline_asset_manager.hpp"
+            "prog/fw_asset_manager.cpp" "prog/includes/fw_asset_manager.hpp"
             "prog/offline_flasher.cpp" "prog/includes/offline_flasher.hpp"
             "prog/cohere_flasher.cpp" "prog/includes/cohere_flasher.hpp"
             "prog/includes/led_ctrl.hpp"
@@ -57,4 +57,5 @@ idf_component_register(
             "esp-mqtt"
             "mpy_embed"
             "esp_http_client"
+            "mbedtls"
 )

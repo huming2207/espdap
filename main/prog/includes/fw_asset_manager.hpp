@@ -4,22 +4,23 @@
 #include <cstddef>
 #include <esp_err.h>
 #include <driver/gpio.h>
+#include <nvs_handle.hpp>
 #include "flash_algo_parser.hpp"
 
 #define CFG_MGR_PKT_MAGIC 0x4a485349
 #define CFG_MGR_FLASH_ALGO_MAX_SIZE  32768
 #define CFG_MGR_FW_MAX_SIZE 1048576
 
-class offline_asset_manager
+class fw_asset_manager
 {
 public:
-    static offline_asset_manager *instance()
+    static fw_asset_manager *instance()
     {
-        static offline_asset_manager _instance;
+        static fw_asset_manager _instance;
         return &_instance;
     }
-    offline_asset_manager(offline_asset_manager const &) = delete;
-    void operator=(offline_asset_manager const &) = delete;
+    fw_asset_manager(fw_asset_manager const &) = delete;
+    void operator=(fw_asset_manager const &) = delete;
 
     esp_err_t init();
     esp_err_t get_algo_bin(uint8_t *algo, size_t len, size_t *actual_len = nullptr);
@@ -39,10 +40,34 @@ public:
     esp_err_t get_program_page_timeout(uint32_t *out) const;
     esp_err_t get_erase_sector_timeout(uint32_t *out) const;
     esp_err_t get_sector_size(uint32_t *out) const;
-    esp_err_t get_fw_crc(uint32_t *out);
-    esp_err_t get_algo_crc(uint32_t *out);
+
     std::vector<flash_algo::test_item> &get_test_items();
 
+public:
+
+    /**
+     * Feed in a SHA256 hash and compare with the record, to see if it's the same
+     * @param sha_expected SHA2 buffer
+     * @param len Length of SHA2, must be 32 bytes
+     * @return true if the record SHA256 is the same as the one provided
+     */
+    static bool check_fw_bin_hash(uint8_t *sha_expected, size_t len);
+
+    /**
+     * Feed in a SHA256 hash and compare with the record, to see if it's the same
+     * @param sha_expected SHA2 buffer
+     * @param len Length of SHA2, must be 32 bytes
+     * @return true if the record SHA256 is the same as the one provided
+     */
+    static bool check_algo_bin_hash(uint8_t *sha_expected, size_t len);
+
+    /**
+     *
+     * @param path
+     * @param out Output to buffer, must be 32 bytes
+     * @return
+     */
+    static esp_err_t get_sha256_from_file(const char *path, uint8_t *out);
 
 
     static const constexpr char BASE_PATH[] = "/data";
@@ -63,9 +88,13 @@ private:
     flash_algo_parser algo_parser {};
     std::vector<flash_algo::flash_sector> dev_sectors = {};
     std::vector<flash_algo::test_item> test_items = {};
+    std::unique_ptr<nvs::NVSHandle> nvs_handle = {};
 
-    static const constexpr char *TAG = "mission_mgr";
-    static const constexpr char *STORAGE_PARTITION_LABEL = "storage";
-    bool manifest_loaded = false;
-    offline_asset_manager() = default;
+    static const constexpr char *TAG = "asset_mgr";
+    static const constexpr char *METADATA_NVS_NS = "fw_meta";
+    static const constexpr char *METADATA_NVS_KEY_FW_HASH = "fw_hash";
+    static const constexpr char *METADATA_NVS_KEY_ALGO_HASH = "algo_hash";
+
+private:
+    fw_asset_manager() = default;
 };
