@@ -55,8 +55,13 @@ esp_err_t bootstrap_fsm::init()
         // TODO handle wifi failure here - go to offline dumb mode?
     }
 
+    auto task_ret = xTaskCreatePinnedToCoreWithCaps(fsm_task_handler, "main_fsm", 65536, this, tskIDLE_PRIORITY + 5, &fsm_task, 1, MALLOC_CAP_SPIRAM);
+    if (task_ret != pdPASS) {
+        ESP_LOGE(TAG, "Failed to start up bootstrap FSM task");
+        return ESP_ERR_INVALID_STATE;
+    }
 
-    return 0;
+    return ESP_OK;
 }
 
 esp_err_t bootstrap_fsm::handle_mqtt_cmd()
@@ -110,6 +115,11 @@ esp_err_t bootstrap_fsm::handle_mqtt_cmd()
         case mqtt_client::MQ_CMD_READ_MEM: {
             return decode_mqtt_cmd_bin_algo(json_doc);
         }
+    }
+
+    json_doc.clear();
+    if (pkt.payload_len > sizeof(mqtt_client::mq_cmd_pkt::buf)) {
+        free(pkt.blob);
     }
 
     return ret;
@@ -189,8 +199,25 @@ esp_err_t bootstrap_fsm::decode_mqtt_cmd_read_mem(ArduinoJson::JsonDocument &doc
     return 0;
 }
 
-void bootstrap_fsm::fsm_task_handler(void *ctx)
+void bootstrap_fsm::fsm_task_handler(void *_ctx)
 {
+    if (_ctx == nullptr) {
+        return;
+    }
 
+    auto *ctx = (bootstrap_fsm *)_ctx;
+    while (true) {
+        ctx->run_fsm_task();
+        vTaskDelay(1);
+    }
+}
+
+void bootstrap_fsm::run_fsm_task()
+{
+    auto ret = handle_mqtt_cmd();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Probably uncaught error 0x%x %s", ret, esp_err_to_name(ret));
+        mq_client.report_host_state("Potential uncaught error", ret);
+    }
 }
 

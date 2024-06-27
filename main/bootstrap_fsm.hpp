@@ -36,9 +36,11 @@ private:
     esp_err_t init_load_config();
     esp_err_t init_mq_client();
     esp_err_t init_connect_wifi();
-    static void fsm_task_handler(void *ctx);
+    void run_fsm_task();
+    static void fsm_task_handler(void *_ctx);
 
 private:
+    TaskHandle_t fsm_task = nullptr;
     config_reader *cfg_reader = config_reader::instance();
     wifi_manager wifi = {};
     mqtt_client mq_client = {};
