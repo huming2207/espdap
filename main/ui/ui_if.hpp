@@ -2,6 +2,7 @@
 
 #include <esp_err.h>
 #include <esp_log.h>
+#include <lvgl.h>
 
 namespace ui_state
 {
@@ -31,7 +32,9 @@ namespace ui_state
 
     struct error_screen
     {
-        char subtitle[32];
+        esp_err_t ret;
+        char comment[32];
+        char qrcode[64];
     };
 
     enum display_state : int8_t
@@ -51,8 +54,10 @@ namespace ui_state
         display_state state;
         uint8_t percentage;
         uint8_t total_count;
-        uint32_t bg_color;
+        lv_color_t bg_color;
+        char title[16];
         char comment[32];
+        char qrcode[64];
     };
 };
 
@@ -70,4 +75,5 @@ public:
     virtual esp_err_t draw_error(ui_state::queue_item *screen) = 0;
     virtual esp_err_t draw_done(ui_state::queue_item *screen) = 0;
     virtual esp_err_t draw_usb(ui_state::queue_item *screen) = 0;
+    virtual esp_err_t draw_anything(ui_state::queue_item *screen) = 0;
 };

@@ -71,7 +71,7 @@ void offline_flasher::on_erase()
     ret = ret ?: asset->get_flash_end_addr(&end_addr);
     if (ret != ESP_OK) {
         ui_state::error_screen error = {};
-        strcpy(error.subtitle, "No flash address");
+        strcpy(error.comment, "No flash address");
         ui_cmder->display_error(&error);
 
         state = flasher::ERROR;
@@ -84,7 +84,7 @@ void offline_flasher::on_erase()
 
         if (ret != ESP_OK) {
             ui_state::error_screen error = {};
-            snprintf(error.subtitle, sizeof(error.subtitle), "Erase failed\nCode: 0x%x", ret);
+            snprintf(error.comment, sizeof(error.comment), "Erase failed\nCode: 0x%x", ret);
             ui_cmder->display_error(&error);
             state = flasher::ERROR;
         }
@@ -102,7 +102,7 @@ void offline_flasher::on_program()
     auto ret = swd->program_file(fw_asset_manager::FIRMWARE_PATH, &written_len);
     if (ret != ESP_OK) {
         ui_state::error_screen error = {};
-        snprintf(error.subtitle, sizeof(error.subtitle), "Prog failed\nCode: 0x%x", ret);
+        snprintf(error.comment, sizeof(error.comment), "Prog failed\nCode: 0x%x", ret);
         ui_cmder->display_error(&error);
         state = flasher::ERROR;
     } else {
@@ -135,10 +135,11 @@ void offline_flasher::on_done()
 void offline_flasher::on_verify()
 {
     uint32_t crc = 0;
-    if (fw_asset_manager::instance()->get_fw_crc(&crc) != ESP_OK) {
-        state = flasher::ERROR;
-        return;
-    }
+    // TODO: move to normal memcmp()
+//    if (fw_asset_manager::instance()->get_fw_crc(&crc) != ESP_OK) {
+//        state = flasher::ERROR;
+//        return;
+//    }
 
     ui_state::test_screen test = {};
     test.done_test = 0;
@@ -149,7 +150,7 @@ void offline_flasher::on_verify()
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to verify!");
         ui_state::error_screen error = {};
-        snprintf(error.subtitle, sizeof(error.subtitle), "Verify failed\nCode: 0x%x", ret);
+        snprintf(error.comment, sizeof(error.comment), "Verify failed\nCode: 0x%x", ret);
         ui_cmder->display_error(&error);
         state = flasher::ERROR;
     } else {

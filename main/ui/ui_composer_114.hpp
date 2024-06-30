@@ -21,10 +21,12 @@ private:
     esp_err_t draw_error(ui_state::queue_item *screen) override;
     esp_err_t draw_done(ui_state::queue_item *screen) override;
     esp_err_t draw_usb(ui_state::queue_item *screen) override;
+    esp_err_t draw_anything(ui_state::queue_item *screen) override;
+
     esp_err_t wait_and_draw();
 
 private:
-    esp_err_t recreate_widget(bool with_comment = false);
+    esp_err_t recreate_widget(bool with_comment = false, bool with_qrcode = false, lv_color_t dark_color = lv_color_black(), lv_color_t bright_color = lv_color_white());
 
 private:
     ui_state::display_state curr_state = ui_state::STATE_EMPTY;

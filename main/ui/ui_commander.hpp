@@ -27,6 +27,8 @@ public:
     esp_err_t display_error(ui_state::error_screen *screen);
     esp_err_t display_done();
     esp_err_t display_usb();
+    esp_err_t display_anything(ui_state::queue_item *item);
+    esp_err_t display_error(esp_err_t ret, const char *qrcode, const char *fmt, ...);
 
 private:
     QueueHandle_t task_queue = nullptr;

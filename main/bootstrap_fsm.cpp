@@ -81,7 +81,7 @@ esp_err_t bootstrap_fsm::handle_mqtt_cmd()
         return ESP_ERR_INVALID_STATE;
     }
 
-    auto err = ArduinoJson::deserializeMsgPack(json_doc, buf, pkt.payload_len);
+    auto err = ArduinoJson::deserializeMsgPack(json_doc, (const char *)buf, (size_t)pkt.payload_len);
     if (err == ArduinoJson::DeserializationError::EmptyInput
         || err == ArduinoJson::DeserializationError::IncompleteInput || err == ArduinoJson::DeserializationError::InvalidInput) {
         ESP_LOGE(TAG, "Failed to decode CMD payload: %s", err.c_str());

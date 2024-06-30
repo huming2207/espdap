@@ -13,7 +13,7 @@ extern "C" void app_main(void)
 //    auto &flasher = swd_headless_flasher::instance();
 //    flasher.init();
 
-    ESP_ERROR_CHECK(comm_msc::instance()->init());
+    // ESP_ERROR_CHECK(comm_msc::instance()->init());
 
 //    ESP_ERROR_CHECK(local_mission_manager::instance().init());
 //
@@ -24,14 +24,17 @@ extern "C" void app_main(void)
 //    ESP_ERROR_CHECK(local_mission_manager::instance().get_pc_init(&pc_init));
 //    ESP_LOGI(TAG, "pc_init: 0x%08lx", pc_init);
 //
-//    auto *display = display_manager::instance();
-//    ESP_ERROR_CHECK(display->init());
-//
-//    auto *ui_cmder = ui_commander::instance();
-//    ui_cmder->init();
-//    ui_cmder->display_init();
-//    vTaskDelay(pdMS_TO_TICKS(3000));
-//    ui_cmder->display_chip_erase();
+    auto *display = display_manager::instance();
+    ESP_ERROR_CHECK(display->init());
+
+    auto *ui_cmder = ui_commander::instance();
+    ui_cmder->init();
+    ui_state::error_screen err = {};
+    snprintf(err.comment, sizeof(ui_state::error_screen::comment), "No banana!");
+    snprintf(err.qrcode, sizeof(ui_state::error_screen::qrcode), "No banananananananannanananananananananananananananannanananna");
+    ui_cmder->display_error(&err);
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ui_cmder->display_chip_erase();
 //
 //    for (uint32_t idx = 0; idx <= 100; idx += 1) {
 //        ui_state::flash_screen screen {};

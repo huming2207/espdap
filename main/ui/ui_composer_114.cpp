@@ -1,5 +1,6 @@
 #include <esp_err.h>
 #include <lvgl.h>
+#include <extra/libs/qrcode/lv_qrcode.h>
 #include "ui_composer_114.hpp"
 #include "lcd/display_manager.hpp"
 
@@ -149,13 +150,14 @@ esp_err_t ui_composer_114::draw_error(ui_state::queue_item *screen)
     }
 
     if (curr_state != ui_state::STATE_ERROR) {
-        recreate_widget();
+        recreate_widget(true, true,  lv_color_white(), lv_color_make(230, 0, 0));
         curr_state = ui_state::STATE_ERROR;
     }
 
-    lv_label_set_text(top_label, "TEST");
-    lv_label_set_text(bottom_label, LV_SYMBOL_CLOSE);
+    lv_label_set_text(top_label, "ERROR");
+    lv_qrcode_update(bottom_label, screen->qrcode, strlen(screen->qrcode));
     lv_label_set_text(bottom_comment, screen->comment);
+
     lv_obj_set_style_bg_color(bottom_sect, lv_color_make(230, 0, 0), 0); // Not-so-bright red
 
     return ESP_OK;
@@ -198,7 +200,27 @@ esp_err_t ui_composer_114::draw_usb(ui_state::queue_item *screen)
     return ESP_OK;
 }
 
-esp_err_t ui_composer_114::recreate_widget(bool with_comment)
+esp_err_t ui_composer_114::draw_anything(ui_state::queue_item *screen)
+{
+    if (disp_obj == nullptr) {
+        ESP_LOGE(TAG, "LVGL needs to be init first");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (curr_state != ui_state::STATE_ERROR) {
+        recreate_widget(true, true,  lv_color_white(), screen->bg_color);
+        curr_state = ui_state::STATE_ERROR;
+    }
+
+    lv_label_set_text(top_label, screen->title);
+    lv_qrcode_update(bottom_label, screen->qrcode, strlen(screen->qrcode));
+    lv_label_set_text(bottom_comment, screen->comment);
+
+    lv_obj_set_style_bg_color(bottom_sect, screen->bg_color, 0);
+    return ESP_OK;
+}
+
+esp_err_t ui_composer_114::recreate_widget(bool with_comment, bool with_qrcode, lv_color_t dark_color, lv_color_t bright_color)
 {
     if (base_obj != nullptr) {
         lv_obj_del(base_obj);
@@ -219,7 +241,7 @@ esp_err_t ui_composer_114::recreate_widget(bool with_comment)
     lv_obj_set_scrollbar_mode(top_sect, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_pad_all(top_sect, 0, 0);
     lv_obj_set_style_border_width(top_sect, 0, 0);
-    lv_obj_set_size(top_sect, (int16_t)display_manager::instance()->get_panel()->get_hor_size(), 100);
+    lv_obj_set_size(top_sect, (int16_t)display_manager::instance()->get_panel()->get_hor_size(), 50);
     lv_obj_set_pos(top_sect, 0, 0);
     lv_obj_set_align(top_sect, LV_ALIGN_TOP_LEFT);
     lv_obj_set_style_bg_color(top_sect, lv_color_white(), 0);
@@ -234,31 +256,44 @@ esp_err_t ui_composer_114::recreate_widget(bool with_comment)
     lv_obj_set_scrollbar_mode(bottom_sect, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_pad_all(bottom_sect, 0, 0);
     lv_obj_set_style_border_width(bottom_sect, 0, 0);
-    lv_obj_set_size(bottom_sect, (int16_t)display_manager::instance()->get_panel()->get_hor_size(), 140);
-    lv_obj_set_pos(bottom_sect, 0, 100);
+    lv_obj_set_size(bottom_sect, (int16_t)display_manager::instance()->get_panel()->get_hor_size(), 190);
+    lv_obj_set_pos(bottom_sect, 0, 50);
     lv_obj_set_align(bottom_sect, LV_ALIGN_TOP_LEFT);
     lv_obj_set_style_bg_color(bottom_sect, lv_color_make(255, 117, 23), 0);
 
-    bottom_label = lv_label_create(bottom_sect);
-    lv_label_set_text(bottom_label, LV_SYMBOL_OK);
-    lv_obj_set_style_text_font(bottom_label, &lv_font_montserrat_36, 0);
+    if (!with_qrcode) {
+        bottom_label = lv_label_create(bottom_sect);
+        lv_label_set_text(bottom_label, LV_SYMBOL_OK);
+        lv_obj_set_style_text_font(bottom_label, &lv_font_montserrat_36, 0);
+        lv_obj_set_style_text_color(bottom_label, lv_color_white(), 0);
+        lv_obj_set_style_text_align(bottom_label, LV_TEXT_ALIGN_CENTER, 0);
+    } else {
+        ESP_LOGI(TAG, "QR code needed");
+        bottom_label = lv_qrcode_create(bottom_sect, 115, dark_color, bright_color);
+        ESP_LOGI(TAG, "QR code created %p", bottom_label);
+    }
+
     lv_obj_set_align(bottom_label, LV_ALIGN_CENTER);
-    lv_obj_set_style_text_color(bottom_label, lv_color_white(), 0);
 
     if (!with_comment) {
-        lv_obj_set_style_text_align(bottom_label, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_align(bottom_label, LV_ALIGN_CENTER);
+        bottom_comment = nullptr;
     } else {
-        lv_obj_set_style_text_align(bottom_label, LV_TEXT_ALIGN_CENTER, 0);
+        if (!with_qrcode) {
+            lv_obj_set_style_text_align(bottom_label, LV_TEXT_ALIGN_CENTER, 0);
+        }
+
         lv_obj_set_align(bottom_label, LV_ALIGN_CENTER);
-        lv_obj_set_pos(bottom_label, 0, -20);
+        lv_obj_set_pos(bottom_label, 0, -32);
 
         bottom_comment = lv_label_create(bottom_sect);
-        lv_obj_set_style_text_font(bottom_comment, &lv_font_montserrat_20, 0);
+        lv_obj_set_width(bottom_comment, (lv_coord_t)(display_manager::instance()->get_panel()->get_hor_size() - 16));
+        lv_obj_set_style_text_align(bottom_comment, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_font(bottom_comment, with_qrcode ? &lv_font_montserrat_16 : &lv_font_montserrat_20, 0);
         lv_obj_set_style_text_color(bottom_comment, lv_color_white(), 0);
-        lv_obj_set_align(bottom_comment, LV_ALIGN_CENTER);
-        lv_obj_set_pos(bottom_comment, 0, 20);
+        lv_obj_set_align(bottom_comment, LV_ALIGN_BOTTOM_MID);
+        lv_obj_set_pos(bottom_comment, 0, 0);
     }
 
     return ESP_OK;
 }
+
