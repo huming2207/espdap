@@ -123,8 +123,22 @@ esp_err_t ui_commander::display_error(esp_err_t ret, const char *qrcode, const c
     va_list args;
     va_start(args, fmt);
 
-    // TBD
+    ui_state::queue_item item = {};
+    item.state = ui_state::STATE_ERROR;
+    if (fmt == nullptr || strlen(fmt) < 1) {
+        snprintf(item.comment, sizeof(ui_state::queue_item::comment), "0x%x\n%s", ret, esp_err_to_name(ret));
+    } else {
+        if (vsnprintf(item.comment, sizeof(ui_state::queue_item::comment), fmt, args) < 0) {
+            return ESP_FAIL;
+        }
+    }
 
+    strncpy(item.qrcode, qrcode, sizeof(ui_state::queue_item::qrcode));
+
+    item.comment[sizeof(ui_state::queue_item::comment) - 1] = '\0';
+    item.qrcode[sizeof(ui_state::queue_item::qrcode) - 1] = '\0';
+
+    xQueueSend(task_queue, &item, portMAX_DELAY);
     va_end(args);
-    return 0;
+    return ESP_OK;
 }
