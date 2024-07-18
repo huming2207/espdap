@@ -42,7 +42,9 @@ private:
     swd_def::state state = swd_def::UNKNOWN;
     program_syscall_t syscall = {};
     uint32_t code_start = 0;
-    uint32_t stack_offset = 0;
+    uint32_t stack_bottom = 0; // Offset of stack bottom
+    uint32_t stack_offset = 0; // Offset of stack top
+    uint32_t stack_canary = 0; // Random 32-bit word generated on every init
     uint32_t func_offset = 0;
     uint32_t ram_addr = 0;
     uint32_t stack_size = 0;
@@ -59,7 +61,7 @@ private:
     esp_err_t run_algo_uninit(swd_def::init_mode mode);
 
 public:
-    esp_err_t init(fw_asset_manager *algo, uint32_t ram_addr = 0x20000000, uint32_t stack_size_byte = 0x200);
+    esp_err_t init(fw_asset_manager *algo, uint32_t ram_addr = 0x20000000, uint32_t _stack_size = 0x2000);
     esp_err_t erase_chip();
     esp_err_t erase_sector(uint32_t start_addr, uint32_t end_addr);
     esp_err_t program_page(const uint8_t *buf, size_t len, uint32_t start_addr = UINT32_MAX);

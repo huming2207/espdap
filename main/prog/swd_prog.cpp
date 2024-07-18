@@ -6,6 +6,7 @@
 #include <cstring>
 #include <esp_crc.h>
 #include <algorithm>
+#include <esp_random.h>
 #include "swd_prog.hpp"
 
 #define TAG "swd_prog"
@@ -182,25 +183,40 @@ esp_err_t swd_prog::run_algo_uninit(swd_def::init_mode mode)
         return ESP_FAIL;
     }
 
+    // Check stack canary
+    uint32_t curr_stack_canary = 0;
+    ret = swd_read_word(stack_bottom, &curr_stack_canary);
+    if (ret < 1) {
+        ESP_LOGE(TAG, "Failed when reading stack canary");
+        state = swd_def::UNKNOWN;
+        return ESP_FAIL;
+    }
+
+    if (curr_stack_canary != stack_canary) {
+        ESP_LOGE(TAG, "Possible stack overflow detected! 0x%08lx vs. 0x%08lx", stack_canary, curr_stack_canary);
+        state = swd_def::UNKNOWN;
+        return ESP_FAIL;
+    }
+
     state = swd_def::FLASH_ALG_UNINITED;
     return ESP_OK;
 }
 
-esp_err_t swd_prog::init(fw_asset_manager *_algo, uint32_t _ram_addr, uint32_t _stack_size_byte)
+esp_err_t swd_prog::init(fw_asset_manager *_algo, uint32_t _ram_addr, uint32_t _stack_size)
 {
     if (_algo == nullptr) {
         ESP_LOGE(TAG, "Flash algorithm container pointer is null");
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (_stack_size_byte == 0) {
+    if (_stack_size == 0) {
         ESP_LOGE(TAG, "Stack size too small");
         return ESP_ERR_INVALID_ARG;
     }
 
     fw_mgr = _algo;
     ram_addr = _ram_addr;
-    stack_size = _stack_size_byte;
+    stack_size = _stack_size;
 
     ESP_LOGI(TAG, "Init target");
     auto ret = swd_init_debug();
@@ -232,6 +248,16 @@ esp_err_t swd_prog::init(fw_asset_manager *_algo, uint32_t _ram_addr, uint32_t _
 
     offset += algo_bin_len; // Add the actual algorithm binary length
     stack_offset = ram_addr + offset + stack_size + sizeof(header_blob);
+    stack_bottom = stack_offset - stack_size; // It's 2024, no one uses 8051; so the stack must've been growing backwards/downwards, right...?
+    stack_canary = esp_random();
+
+    ESP_LOGI(TAG, "Stack: top=0x%08lx, bottom=0x%08lx, canary=0x%08lx", stack_offset, stack_bottom, stack_canary);
+    ret = swd_write_word(stack_bottom, stack_canary);
+    if (ret < 1) {
+        ESP_LOGE(TAG, "Timeout when writing stack canary!");
+        state = swd_def::UNKNOWN;
+        return ESP_ERR_INVALID_STATE;
+    }
 
     uint32_t data_section_offset = 0;
     if (fw_mgr->get_data_section_offset(&data_section_offset) != ESP_OK) {
@@ -245,8 +271,8 @@ esp_err_t swd_prog::init(fw_asset_manager *_algo, uint32_t _ram_addr, uint32_t _
 
     func_offset = ram_addr + sizeof(header_blob);
 
-    ESP_LOGI(TAG, "Addr: code_start: 0x%08lx; stack_offset: 0x%08lx; data_section: 0x%08lx", code_start, stack_offset, data_section_offset);
-    ESP_LOGI(TAG, "Addr: stack: 0x%08lx; bkpt: 0x%08lx; func_offset: 0x%08lx", stack_offset, syscall.breakpoint, func_offset);
+    ESP_LOGI(TAG, "Addr: code_start: 0x%08lx; data_section: 0x%08lx", code_start, data_section_offset);
+    ESP_LOGI(TAG, "Addr: stack top: 0x%08lx; bkpt: 0x%08lx; func_offset: 0x%08lx", stack_offset, syscall.breakpoint, func_offset);
 
     state = swd_def::INITIALISED;
     return ESP_OK;
