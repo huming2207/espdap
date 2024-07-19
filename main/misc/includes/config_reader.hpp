@@ -26,6 +26,12 @@ namespace config
 class config_reader
 {
 public:
+    enum work_mode : uint32_t {
+        OFFLINE_MODE = 0, // Default mode if network info doesn't exist
+        COHERE_MODE = 1,
+    };
+
+public:
     static config_reader *instance()
     {
         static config_reader _instance;
@@ -37,6 +43,7 @@ public:
 
 public:
     esp_err_t load();
+    esp_err_t get_mode(work_mode *mode);
     esp_err_t get_wifi_cred(wifi_config_t *cred);
     esp_err_t get_mqtt_cred(config::mqtt_cred &mq_cred);
     esp_err_t get_mac_addr(uint8_t *mac_addr);
@@ -47,6 +54,7 @@ public:
 
 private:
     config_reader() = default;
+    bool has_valid_config = false;
     uint8_t mac_addr[6] = {};
     uint64_t flash_sn = 0;
     char full_sn[32] = {};
