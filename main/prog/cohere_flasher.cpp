@@ -60,7 +60,7 @@ esp_err_t cohere_flasher::on_error()
     return 0;
 }
 
-esp_err_t cohere_flasher::decode_message(const char *topic, uint8_t *buf, size_t len)
+esp_err_t cohere_flasher::decode_message(ArduinoJson::JsonDocument &doc)
 {
     return 0;
 }

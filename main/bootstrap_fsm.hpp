@@ -4,6 +4,7 @@
 #include "config_reader.hpp"
 #include "wifi_manager.hpp"
 #include "mqtt_client.hpp"
+#include "cohere_flasher.hpp"
 
 class bootstrap_fsm
 {
@@ -44,6 +45,7 @@ private:
     config_reader *cfg_reader = config_reader::instance();
     wifi_manager wifi = {};
     mqtt_client mq_client = {};
+    cohere_flasher online_flasher = cohere_flasher();
 
 private:
     static const constexpr char TAG[] = "bootstrap_fsm";

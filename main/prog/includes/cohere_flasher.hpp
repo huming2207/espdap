@@ -2,25 +2,17 @@
 
 #include <freertos/FreeRTOS.h>
 #include <esp_err.h>
+#include "ArduinoJson.hpp"
 
 class cohere_flasher
 {
 public:
-    static cohere_flasher *instance()
-    {
-        static cohere_flasher instance;
-        return &instance;
-    }
-
-    cohere_flasher(cohere_flasher const &) = delete;
-    void operator=(cohere_flasher const &) = delete;
+    cohere_flasher() = default;
 
 public:
     enum cohere_states : uint32_t {
         STATE_INIT = 0,
         STATE_CHECK_BINARY,
-        STATE_FETCH_BIN_FW,
-        STATE_FETCH_BIN_ALGO,
         STATE_EXEC_IDENT,
         STATE_EXEC_SELF_TEST,
         STATE_EXEC_EXTERN_TEST,
@@ -33,7 +25,7 @@ public:
 
 public:
     esp_err_t init();
-    esp_err_t decode_message(const char *topic, uint8_t *buf, size_t len);
+    esp_err_t decode_message(ArduinoJson::JsonDocument &doc);
 
 private:
     esp_err_t on_check_binary();
@@ -48,6 +40,4 @@ private:
     esp_err_t on_exec_done();
     esp_err_t on_error();
 
-private:
-    cohere_flasher() = default;
 };

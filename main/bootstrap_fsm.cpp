@@ -36,13 +36,14 @@ esp_err_t bootstrap_fsm::init_mq_client()
 
 esp_err_t bootstrap_fsm::init()
 {
-    ESP_LOGI(TAG, "Connect WiFi...");
+    ESP_LOGI(TAG, "Loading config");
     auto ret = init_load_config();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to load config: 0x%x %s", ret, esp_err_to_name(ret));
         // TODO handle load config failure here - stuck here forever??
     }
 
+    ESP_LOGI(TAG, "Connecting WiFi");
     ret = init_connect_wifi();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to connect WiFi: 0x%x %s", ret, esp_err_to_name(ret));
@@ -191,7 +192,7 @@ esp_err_t bootstrap_fsm::decode_mqtt_cmd_bin_algo(ArduinoJson::JsonDocument &doc
 
 esp_err_t bootstrap_fsm::decode_mqtt_cmd_set_state(ArduinoJson::JsonDocument &doc)
 {
-    return 0;
+    return online_flasher.decode_message(doc);
 }
 
 esp_err_t bootstrap_fsm::decode_mqtt_cmd_read_mem(ArduinoJson::JsonDocument &doc)
