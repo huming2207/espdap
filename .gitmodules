@@ -1,6 +1,6 @@
 [submodule "components/daplink-esp"]
 	path = components/daplink-esp
-  	url = git@github.com:huming2207/swd-esp.git
+  	url = https://github.com/huming2207/swd-esp
 [submodule "components/lvgl"]
 	path = components/lvgl
 	url = https://github.com/lvgl/lvgl.git
