@@ -54,7 +54,6 @@ idf_component_register(
             "esp_wifi"
             "esp_http_client"
             "esp-mqtt"
-            "mpy_embed"
             "esp_http_client"
             "mbedtls"
             "soulinjector-common"

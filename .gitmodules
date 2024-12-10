@@ -20,9 +20,6 @@
 [submodule "components/esp-mqtt"]
 	path = components/esp-mqtt
 	url = https://github.com/espressif/esp-mqtt.git
-[submodule "components/mpy_embed/micropython"]
-	path = components/mpy_embed/micropython
-	url = https://github.com/micropython/micropython
 [submodule "components/soulinjector-fw-common"]
 	path = components/soulinjector-common
 	url = https://github.com/huming2207/soulinjector-fw-common.git
