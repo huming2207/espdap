@@ -3,6 +3,7 @@
 #include "lcd/display_manager.hpp"
 #include "comm_msc.hpp"
 #include "button_manager.hpp"
+#include <runner/runner.hpp>
 
 extern "C" void app_main(void)
 {

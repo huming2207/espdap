@@ -23,7 +23,6 @@ idf_component_register(
             "driver/lcd/lhs154kc_panel.cpp" "driver/lcd/lhs154kc_panel.hpp"
 #            "driver/lcd/nfp190b_panel.cpp" "driver/lcd/nfp190b_panel.hpp"
             "driver/lcd/nfp114h_panel.cpp" "driver/lcd/nfp114h_panel.hpp"
-            "ui/ui_if.hpp"
             "ui/ui_composer_114.cpp" "ui/ui_composer_114.hpp"
             "ui/ui_commander.cpp" "ui/ui_commander.hpp"
 
@@ -58,4 +57,5 @@ idf_component_register(
             "mpy_embed"
             "esp_http_client"
             "mbedtls"
+            "soulinjector-common"
 )
