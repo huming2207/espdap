@@ -23,3 +23,6 @@
 [submodule "components/soulinjector-fw-common"]
 	path = components/soulinjector-common
 	url = https://github.com/huming2207/soulinjector-fw-common.git
+[submodule "components/soulinjector-sg"]
+	path = components/soulinjector-sg
+	url = https://gitlab.smartguide.com.au/jackson/soulinjector-sg.git
